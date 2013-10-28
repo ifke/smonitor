@@ -3,9 +3,9 @@ smonitor
 
 A python daemon for monitoring devices connected to a switch and sending results to a zabbix server.
 
-The daemon gets a list on device MAC addresses on each port of a switch over SNMP protocol. If it's possible the daemon scans available local networks with the arp-scan utility to enrich the MAC cache of the switch and to create a mapping derived MAC addresses to IPs. Moreover it tries to map known IP address to fully qualified doamin names (FQDN). Lastly all gathered data are processed and sent to a zabbix server.
+The daemon gets a list of MAC addresses of devices on each port of a switch over the SNMP protocol. If it's possible the daemon will scan available local networks with the arp-scan utility to enrich the MAC cache of the switch and to create a mapping derived MAC addresses to IPs. Moreover it tries to map known IP addresses to fully qualified doamin names (FQDN). Lastly all gathered data are processed and sent to a zabbix server.
 
 Requirements:
  - Python modules: daemon, syslog
  - Shell commands: ifconfig, snmpwalk, arp-scan, zabbix_sender
- - Rights: it's enough common user rights for daemon running, but you have to set a suid flag for the arp-scan command, because it requires root priviligies. 
+ - Rights: it's enough common user rights for daemon running, but you have to set a suid flag for the arp-scan command, because it requires root privileges. 

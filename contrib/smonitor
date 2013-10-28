@@ -17,12 +17,17 @@ NAME=smonitor
 # Daemon name, where is the actual executable
 DAEMON=/home/smonitor/smonitor.py
 # pid file for the daemon
-PIDFILE=/var/run/smonitor/smonitor.pid
+PIDFOLDER=/var/run/smonitor
+PIDFILE=$PIDFOLDER/smonitor.pid
 # run as user
 USER=smonitor
 
 # If the daemon is not there, then exit.
 test -x $DAEMON || exit 5
+# If folder for pid file doesn't exist, create it and set its owner 
+test -x $PIDFOLDER || mkdir $PIDFOLDER
+# Check ownership of the pid folder
+test "`stat -c %U $PIDFOLDER`" = "$USER" || chown $USER $PIDFOLDER
 
 case $1 in
     start)

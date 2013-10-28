@@ -6,6 +6,7 @@ from __future__ import print_function
 import os, os.path, stat
 import sys
 import daemon
+from daemon.pidlockfile import PIDLockFile
 import tempfile
 import time
 from syslog import *
@@ -41,6 +42,7 @@ DEFAULT_SETTINGS = {
     'snmpwalk_cmd': '/usr/bin/snmpwalk',
     'mac_oid' : '.1.3.6.1.2.1.17.4.3.1.1',
     'port_oid': '.1.3.6.1.2.1.17.4.3.1.2',
+    'pidfile': '/var/run/smonitor/smonitor.pid',
     'switches': [],
 }
 
@@ -346,7 +348,7 @@ else:
     check_settings()
 
     # start the daemon process
-    with daemon.DaemonContext():
+    with daemon.DaemonContext(pidfile = PIDLockFile(Settings.pidfile)):
         send2log('Start daemon', LOG_NOTICE)
         try:
             main_process()

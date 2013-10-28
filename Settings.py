@@ -31,5 +31,7 @@ arpscan_cmd = '/usr/bin/arp-scan'
 zabbix_sender_cmd = '/usr/bin/zabbix_sender'
 snmpwalk_cmd = '/usr/bin/snmpwalk'
 
+pidfile = '/var/run/smonitor/smonitor.pid'
+
 mac_oid  = '.1.3.6.1.2.1.17.4.3.1.1'
 port_oid = '.1.3.6.1.2.1.17.4.3.1.2'

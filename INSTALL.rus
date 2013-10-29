@@ -1,0 +1,38 @@
+﻿Инструкция по установке демона smonitor для Ubuntu (тестировалась на Ubuntu Server 12.04)
+
+Предполагается, что мы уже загрузили на компьютер файла из github
+git clone https://github.com/ifke/smonitor.git
+и перешли в папку программы
+cd smonitor
+
+1. Импортируем на zabbix сервер шаблон contrib/zbx_template_smonitor.xml, присоединяем его свичам и активируем поля host_on_port[X] в соответсвии с количеством портов на каждом свиче
+
+2. Устанавливаем необходимые утилиты и модули python
+sudo apt-get update
+sudo apt-get install python-daemon snmp arp-scan zabbix-agent
+
+3. Создаем пользователя, из-под которого будем запускать демон
+sudo useradd --create-home --system --comment "smonitor daemon" --shell /bin/false smonitor
+
+4. Копируем py-файлы программы в домашнюю директорию нового пользователя
+sudo cp -v *.py /home/smonitor
+
+5. Задаём в файле Settings.py настройки демона 
+
+6. Настраиваем запуск команды arp-scan с правами рута
+sudo chown root:smonitor /usr/bin/arp-scan
+sudo chmod 4750 /usr/bin/arp-scan
+
+7. Проверяем параметры в скрипте запуска contrib/smonitor и копируем его в папку /etc/init.d
+sudo cp contrib/smonitor /etc/init.d
+
+8. Запускаем smonitor в режиме отладки
+/home/smonitor/smonitor.py --debug
+
+9. Если данные успешно переданы на сервер zabbix успешно, завершаем работу программы, нажав Ctrl-C, и запускаем её в режиме демона
+sudo /etc/init.d/smonitor start
+если программа работает в режиме отладки, но не запускается как демон, скорее всего она не может создать pid файл.
+Тогда проверяем пользователя и путь к файлу в скрипте запуска, а также параметр pidfile в настройках Settings.py.
+
+10. Настраиваем автозапуск демена smonitor
+sudo update-rc.d smonitor defaults

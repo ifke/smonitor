@@ -20,9 +20,9 @@ from Ip2fqdn import Ip2fqdn
 
 
 # templates of parameters of used programs
-ZABBIX_PARAMS = '-z {zabbix_server} -i {filename} -vv'
+ZABBIX_PARAMS = '--zabbix-server {zabbix_server} --input-file {filename} -vv'
 SNMPWALK_PARAMS = '-c {community} -v 2c -Onq -Cc -t 3 {ip} {oid_prefix}'
-ARPSCAN_PARAMS = '-q -r 3 -b 2 -l -I {interface}'
+ARPSCAN_PARAMS = '--quiet --timeout=300 --backoff=2 --retry=3 --localnet --interface={interface}'
 # the names of log levels
 MSG_NAMES = ['EMERGE', 'ALERT', 'CRITICAL', 'ERROR', 'WARNING', 'NOTICE', 'INFO', 'DEBUG']
 # default settings of smonitor

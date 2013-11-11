@@ -15,3 +15,5 @@ See available settings of the program and its description in the file Settings.p
  - Python modules: daemon, syslog
  - Shell commands: ifconfig, snmpwalk, arp-scan, zabbix_sender
  - Rights: it's enough common user rights for daemon running, but you have to set a suid flag for the arp-scan command, because it requires root privileges
+
+The application is tested with HP Procurve 2520, HP Procurve 1700 and D-Link DES-3028 under Ubuntu Server 12.04 system. It doesn't support Cisco switches now.

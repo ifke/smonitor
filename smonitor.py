@@ -103,7 +103,7 @@ def check_settings():
                      **locals())
         else:
             value = Settings.__dict__[key]
-            send2log('The parameter {key} is set to {value}', **locals())
+            send2log('The parameter {key} is {value}', **locals())
     # selection of correct defined switches
     correct_switches = []
     for n, switch in enumerate(Settings.switches, 1):

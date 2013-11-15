@@ -48,10 +48,12 @@ DEFAULT_SETTINGS = {
 }
 
 
-def prepare2log(msg, loglevel):
+def prepare2log(msg, loglevel, **kargs):
     """
     Prepare message to be send to syslog
     """
+    if kargs:
+        msg = msg.format(**kargs)
     # replace new line character with triple space
     msg = msg.replace('\n', '   ')
     # remove ascii symbols with code less 32 (syslog doesn't like them)
@@ -64,9 +66,7 @@ def send2log(msg, loglevel=LOG_INFO, **kargs):
     """
     Send the message msg to syslog
     """
-    if kargs:
-        msg = msg.format(**kargs)
-    msg = prepare2log(msg, loglevel)
+    msg = prepare2log(msg, loglevel, **kargs)
     # carefully send a message to syslog
     try:
         syslog(loglevel, msg)
@@ -78,9 +78,7 @@ def send2console(msg, loglevel=LOG_INFO, **kargs):
     """
     Print log message to console
     """
-    if kargs:
-        msg = msg.format(**kargs)
-    msg = prepare2log(msg, loglevel)
+    msg = prepare2log(msg, loglevel, **kargs)
     print(msg)
 
 

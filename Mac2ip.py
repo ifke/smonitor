@@ -6,11 +6,8 @@ import re
 
 
 # Regular expressions to parse output of conrrespinding commands
-IFCONFIG_RE = re.compile(r"""(?P<ifname>\w+)\s+Link encap:Ethernet\s+HWaddr\s+
-    (?P<ifmac>[:0-9a-f]+)\s+inet addr:(?P<ifip>[.0-9]+)\s+Bcast:[.0-9]+\s+
-    Mask:(?P<mask>[.0-9]+)""", re.I & re.X)
-NMAP_RE = re.compile(r"""(?P<ip>(?:\d{1,3}\.){3}\d{1,3})[^:]+:\s+
-    (?P<mac>(?:[0-9a-f]{2}:){5}[0-9a-f]{2})""", re.I & re.X)
+IFCONFIG_RE = re.compile(r"""(?P<ifname>\w+)\s+link\s+encap:Ethernet\s+hwaddr\s+(?P<ifmac>[:0-9a-f]+)\s+inet\s+addr:(?P<ifip>[.0-9]+)\s+Bcast:[.0-9]+\s+mask:(?P<mask>[.0-9]+)""", re.I)
+NMAP_RE = re.compile(r"""(?P<ip>(?:\d{1,3}\.){3}\d{1,3})[^:]+:\s+(?P<mac>(?:[0-9a-f]{2}:){5}[0-9a-f]{2})""", re.I)
 
 
 class InterfaceDiscoverError(Exception):
@@ -66,7 +63,7 @@ class Mac2ip(dict):
             # convert netmask from dotted to integer format
             mask = str(sum([bin(int(x)).count('1') for x in mask.split('.')]))
             self.interfaces.append((name, mac, ip, mask))
-        if not interface_info:
+        if not self.interfaces:
             msg = 'No valid interfaces for arp scanning'
             raise InterfaceDiscoverError(msg)
 

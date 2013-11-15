@@ -29,7 +29,8 @@ default_number_of_ports = 48    # default number of switch ports
 max_hosts_on_port = 7           # bound of the number of hosts on one port above that the port is considered as connected to another switch (integer, 0 - disable bound)
 
 ifconfig_cmd = '/sbin/ifconfig' # paths to corresponding programs
-arpscan_cmd = '/usr/bin/arp-scan'
+sudo_cmd = '/usr/bin/sudo'
+nmap_cmd = '/usr/bin/nmap'
 zabbix_sender_cmd = '/usr/bin/zabbix_sender'
 snmpwalk_cmd = '/usr/bin/snmpwalk'
 

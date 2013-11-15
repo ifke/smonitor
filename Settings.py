@@ -3,14 +3,9 @@
 
 switches = [
     {
-        'name': 'test',
-        'ip': '192.168.0.251',
-        'nports': 24,
-    },
-    {
-        'name': 'test2',
-        'ip': '192.168.0.252',
-        'nports': 8,
+        'name': 'procurve2520.forb.local',
+        'ip': '172.17.5.221',
+        'nports': 28,
     },
 ]
 zabbix_server = '127.0.0.1'
@@ -27,7 +22,8 @@ default_number_of_ports = 48
 max_hosts_on_port = 7
 
 ifconfig_cmd = '/sbin/ifconfig'
-arpscan_cmd = '/usr/bin/arp-scan'
+sudo_cmd = '/usr/bin/sudo'
+nmap_cmd = '/usr/bin/nmap'
 zabbix_sender_cmd = '/usr/bin/zabbix_sender'
 snmpwalk_cmd = '/usr/bin/snmpwalk'
 

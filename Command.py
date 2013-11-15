@@ -21,16 +21,23 @@ class Command(object):
     On initilization it checks existance and mandatory properties of the command file.
     The object is callable and returns a tuple of return code and output of the command.
     """
-    def __init__(self, path, parameters='', run_as_root=False):
+    def __init__(self, path, parameters='', use_sudo=False, sudo_path=''):
         if not os.path.isfile(path):
             raise CommandError('The command file {path} not found'.format(**locals()))
         if not os.access(path, os.X_OK):
             raise CommandError('Can\'t execute the command file {path}'.format(**locals()))
-        if run_as_root:
-            cmd_stats = os.stat(path)
-            if not (cmd_stats.st_mode & stat.S_ISUID and cmd_stats.st_uid == 0):
-                raise CommandError('File {path} must be owned by root and has suid bit'.format(**locals()))
-        self.cmd_tmpl = ' '.join((path, parameters)) if parameters else path
+        cmd_list = []
+        if use_sudo:
+            if not os.path.isfile(sudo_path):
+                raise CommandError('The command file {sudo_path} not found'.format(**locals()))
+            if not os.access(sudo_path, os.X_OK):
+                raise CommandError('Can\'t execute the command file {sudo_path}'.format(**locals()))
+            # we use -n options for sudo to disable password prompt
+            cmd_list.extend([sudo_path, '-n'])
+        cmd_list.append(path)
+        if parameters:
+            cmd_list.append(parameters)
+        self.cmd_tmpl = ' '.join(cmd_list)
 
     def __call__(self, **kargs):
         """

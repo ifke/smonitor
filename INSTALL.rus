@@ -9,7 +9,7 @@ cd smonitor
 
 2. Устанавливаем необходимые утилиты и модули python
 sudo apt-get update
-sudo apt-get install python-daemon snmp arp-scan zabbix-agent
+sudo apt-get install python-daemon snmp nmap zabbix-agent
 
 3. Создаем пользователя, из-под которого будем запускать демон
 sudo useradd --create-home --system --comment "smonitor daemon" --shell /bin/false smonitor
@@ -19,9 +19,9 @@ sudo cp -v *.py /home/smonitor
 
 5. Задаём в файле Settings.py настройки демона 
 
-6. Настраиваем запуск команды arp-scan с правами рута
-sudo chown root:smonitor /usr/bin/arp-scan
-sudo chmod 4750 /usr/bin/arp-scan
+6. Настраиваем запуск команды nmap с помощью утилиты sudo
+sudo chown root:root contrib/nmap
+sudo mv contrib/nmap /etc/sudoers.d
 
 7. Проверяем параметры в скрипте запуска contrib/smonitor и копируем его в папку /etc/init.d
 sudo cp contrib/smonitor /etc/init.d

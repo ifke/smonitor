@@ -22,7 +22,7 @@ from Ip2fqdn import Ip2fqdn
 # templates of parameters of used programs
 ZABBIX_PARAMS = '--zabbix-server {zabbix_server} --input-file {filename} -vv'
 SNMPWALK_PARAMS = '-c {community} -v 2c -Onq -Cc -t 3 {ip} {oid_prefix}'
-ARPSCAN_PARAMS = '--quiet --timeout=300 --backoff=2 --retry=3 --localnet --interface={interface}'
+NMAP_PARAMS = '-sP -sn -n {address}/{mask}'
 # the names of log levels
 MSG_NAMES = ['EMERGE', 'ALERT', 'CRITICAL', 'ERROR', 'WARNING', 'NOTICE', 'INFO', 'DEBUG']
 # default settings of smonitor
@@ -37,7 +37,8 @@ DEFAULT_SETTINGS = {
     'default_number_of_ports': 48,
     'max_hosts_on_port': 7,
     'ifconfig_cmd': '/sbin/ifconfig',
-    'arpscan_cmd': '/usr/bin/arp-scan',
+    'sudo_cmd': '/usr/bin/sudo',
+    'nmap_cmd': '/usr/bin/nmap',
     'zabbix_sender_cmd': '/usr/bin/zabbix_sender',
     'snmpwalk_cmd': '/usr/bin/snmpwalk',
     'mac_oid' : '.1.3.6.1.2.1.17.4.3.1.1',
@@ -190,7 +191,7 @@ def send2zabbix(switches, mac2ip, ip2fqdn, cmd, zabbix_server):
         send2log('Output of zabbix sender: {output}'.format(**locals()), loglevel)
 
 
-def initialize_command(cmd_path, parameters='', run_as_root=False, required=True):
+def initialize_command(cmd_path, parameters='', use_sudo=False, sudo_path='', required=True):
     """
     Retrun Command object for the command and parameters string
     """
@@ -200,7 +201,7 @@ def initialize_command(cmd_path, parameters='', run_as_root=False, required=True
     else:
         send2log('Initialize the command {cmd_path} without parameters'.format(**locals()), LOG_DEBUG)
     try:
-        cmd = Command(cmd_path, parameters, run_as_root)
+        cmd = Command(cmd_path, parameters, use_sudo, sudo_path)
     except CommandError as err:
         cmd = None
         send2log(str(err), loglevel)
@@ -209,14 +210,14 @@ def initialize_command(cmd_path, parameters='', run_as_root=False, required=True
     return cmd
 
 
-def initialize_mac2ip(ifconfig_cmd, arpscan_cmd):
+def initialize_mac2ip(ifconfig_cmd, nmap_cmd):
     """
     Create Mac2ip object for the mac-to-ip mapping 
     """
     if Settings.mac2ip_enable:
         send2log('Initialize the mac-to-ip mapping')
         try:
-            mapping = Mac2ip(ifconfig_cmd, arpscan_cmd)
+            mapping = Mac2ip(ifconfig_cmd, nmap_cmd)
             interfaces_list = mapping.scanning_interfaces()
             send2log('Found interfaces for arp scannig: ' + interfaces_list, LOG_DEBUG)
             send2log('The mapping is {mapping}'.format(**locals()), LOG_DEBUG)
@@ -301,15 +302,15 @@ def main_process():
     zabbix_sender_cmd = initialize_command(Settings.zabbix_sender_cmd,  ZABBIX_PARAMS, required=True)
     snmpwalk_cmd = initialize_command(Settings.snmpwalk_cmd, SNMPWALK_PARAMS, required=True)
     ifconfig_cmd = initialize_command(Settings.ifconfig_cmd, required=False)
-    arpscan_cmd = initialize_command(Settings.arpscan_cmd, ARPSCAN_PARAMS, run_as_root=True, required=False)
+    nmap_cmd = initialize_command(Settings.nmap_cmd, NMAP_PARAMS, use_sudo=True, sudo_path=Settings.sudo_cmd, required=False)
 
     # initialize mappings and switches
     # arp scanning always is before requests to switches to fill their mac caches
-    if ifconfig_cmd is None or arpscan_cmd is None:
+    if ifconfig_cmd is None or nmap_cmd is None:
         send2log('Force disable the mac-to-ip and ip-to-fqdn mappings', LOG_ERR)
         mac2ip = None
     else:
-        mac2ip = initialize_mac2ip(ifconfig_cmd, arpscan_cmd)
+        mac2ip = initialize_mac2ip(ifconfig_cmd, nmap_cmd)
     switches = initialize_switches(snmpwalk_cmd)
     ip2fqdn = initialize_ip2fqdn(mac2ip.values()) if mac2ip is not None else None
     send2zabbix(switches, mac2ip, ip2fqdn, zabbix_sender_cmd, Settings.zabbix_server)

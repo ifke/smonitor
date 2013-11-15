@@ -9,7 +9,7 @@ cd smonitor
 
 2. Install necessary utilities and python modules
 sudo apt-get update
-sudo apt-get install python-daemon snmp arp-scan zabbix-agent
+sudo apt-get install python-daemon snmp nmap zabbix-agent
 
 3. Create the user for daemon running
 sudo useradd --create-home --system --comment "smonitor daemon" --shell /bin/false smonitor
@@ -19,9 +19,9 @@ sudo cp -v *.py /home/smonitor
 
 5. Set settings of the daemon in file /home/smonitor/Settings.py
 
-6. Configure attributes of the arp-scan file
-sudo chown root:smonitor /usr/bin/arp-scan
-sudo chmod 4750 /usr/bin/arp-scan
+6. Configure execution nmap with sudo utility
+sudo chown root:root contrib/nmap
+sudo mv contrib/nmap /etc/sudoers.d
 
 7. Check parameters of the init script in contrib/smonitr and copy it to the folder /etc/init.d
 sudo cp contrib/smonitor /etc/init.d

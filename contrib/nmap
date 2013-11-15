@@ -1,0 +1,1 @@
+smonitor    ALL = NOPASSWD:     /usr/bin/nmap

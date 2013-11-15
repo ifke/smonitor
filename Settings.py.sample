@@ -1,40 +1,83 @@
 # Sample settings file of the smonitor daemon
-# Here the python syntax is used. Strings values are eclosed in quotes or apostrophes, intergers - not. The switches parameter is a list of dictionaries.
+# Here the python syntax is used. Strings values are eclosed in quotes
+# or apostrophes, intergers - not.
 
 # list of switches to monitor (inside square brackets)
 switches = [                        # <---- begin of the list
-    {                           # <--- dictionary of switch parameters (inside curly brackets)
-        'name': 'test',         # a name of the switch on zabbix server (string)
-        'ip': '192.168.0.251',  # ip address of the switch (string)
-        'nports': 24,           # the number of ports of the switch (integer, optional)
-        'community': 'public',  # SNMP community (string, optional)
-    },                          # <--- end of the dictionary (don't forget comma)
+    {                           # <--- dictionary of switch parameters
+        # a name of the switch on zabbix server (string)
+        'name': 'test',
+        # ip address of the switch (string)
+        'ip': '192.168.0.251',
+        # the number of ports of the switch (integer, optional)
+        'nports': 24,
+        # SNMP community (string, optional)
+        'community': 'public',
+    },                          # <--- end of the dictionary
     {                           # <--- next switch
         'name': 'test2',
         'ip': '192.168.0.252',
         'nports': 8,
-    },                          # <--- here the comma is optional, but desirable
+    },                          # <--- comma is optional, but desirable
 ]                                   # <---- end of the list
-zabbix_server = '127.0.0.1'     # address of zabbix server (string)
-community = 'private'           # default SNMP community (string)
-mac2ip_enable = 1               # whether it makes ARP scanning and maps MAC adresses to IPs (0 or 1)
-ip2fqdn_enable = 1              # whether it maps IP addresses to domain names (0 or 1)
-show_all_addresses = 1          # send to zabbix server all known adresses or only the first one - in order domain name, ip adress, mac address (0 or 1)
+# address of zabbix server (string)
+# default value is '127.0.0.1'
+zabbix_server = '127.0.0.1'
 
-send2zabbix_interval = 60       # interval of sending data to zabbix server (integer)
+# default SNMP community (string)
+# default value is 'public'
+community = 'private'
 
-loglevel = 7                    # log level (integer from 0 to 7)
+# whether it makes ARP scanning and maps MAC adresses to IPs (0 or 1)
+# default value is 1
+mac2ip_enable = 1
 
-default_number_of_ports = 48    # default number of switch ports
-max_hosts_on_port = 7           # bound of the number of hosts on one port above that the port is considered as connected to another switch (integer, 0 - disable bound)
+# whether it maps IP addresses to domain names (0 or 1)
+# default value is 1
+ip2fqdn_enable = 1
 
-ifconfig_cmd = '/sbin/ifconfig' # paths to corresponding programs
+# send to zabbix server all known adresses or only the first one
+# in order domain name, ip adress, mac address (0 or 1)
+# default value is 0
+show_all_addresses = 1
+
+# interval in seconds of sending data (integer)
+# default value is 900
+send2zabbix_interval = 60
+
+# log level (integer from 0 to 7)
+# default value is 5
+loglevel = 7
+
+# default number of switch ports
+# default value is 48
+default_number_of_ports = 48
+
+# bound of the number of hosts on one port above that the port is
+# considered as connected to another switch (integer, 0 - disable bound)
+# default value is 7
+max_hosts_on_port = 7
+
+# paths to corresponding programs (strings)
+# default value is '/sbin/ifconfig'
+ifconfig_cmd = '/sbin/ifconfig'
+# default value is '/usr/bin/sudo'
 sudo_cmd = '/usr/bin/sudo'
+# default value is '/usr/bin/nmap'
 nmap_cmd = '/usr/bin/nmap'
+# default value is '/usr/bin/zabbix_sender'
 zabbix_sender_cmd = '/usr/bin/zabbix_sender'
+# default value is '/usr/bin/snmpwalk'
 snmpwalk_cmd = '/usr/bin/snmpwalk'
 
-pidfile = '/var/run/smonitor/smonitor.pid'  # path to pid file of the daemon (the same should be in the init script)
+# path to pid file of the daemon (the same should be in the init script)
+# default value is '/var/run/smonitor/smonitor.pid'
+pidfile = '/var/run/smonitor/smonitor.pid'
 
-mac_oid  = '.1.3.6.1.2.1.17.4.3.1.1'    # SNMP OID to get MAC address from the switch cache (string)
-port_oid = '.1.3.6.1.2.1.17.4.3.1.2'    # SNMP OID to get port list of the switch (string)
+# SNMP OID to get MAC address from the switch cache (string)
+# default value is '.1.3.6.1.2.1.17.4.3.1.1'
+mac_oid  = '.1.3.6.1.2.1.17.4.3.1.1'
+
+# SNMP OID to get port list of the switch (string)
+# default value is '.1.3.6.1.2.1.17.4.3.1.2'
+port_oid = '.1.3.6.1.2.1.17.4.3.1.2'

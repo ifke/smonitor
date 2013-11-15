@@ -1,5 +1,7 @@
 # Sample settings file of the smonitor daemon
-# Here the python syntax is used. Strings values are eclosed in quotes or apostrophes, intergers - not. The switches parameter is a list of dictionaries.
+# Here the python syntax is used. Strings values are eclosed in quotes
+# or apostrophes, intergers - not. The switches parameter is a list of
+# dictionaries.
 
 switches = [
     {

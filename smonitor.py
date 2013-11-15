@@ -41,7 +41,7 @@ DEFAULT_SETTINGS = {
     'nmap_cmd': '/usr/bin/nmap',
     'zabbix_sender_cmd': '/usr/bin/zabbix_sender',
     'snmpwalk_cmd': '/usr/bin/snmpwalk',
-    'mac_oid' : '.1.3.6.1.2.1.17.4.3.1.1',
+    'mac_oid': '.1.3.6.1.2.1.17.4.3.1.1',
     'port_oid': '.1.3.6.1.2.1.17.4.3.1.2',
     'pidfile': '/var/run/smonitor/smonitor.pid',
     'switches': [],
@@ -133,7 +133,7 @@ def check_settings():
             nports = switch['nports']
             send2log('The number of ports is defined as a string "{nports}"',
                      LOG_WARNING, **locals())
-            send2log( 'Try to convert it to an integer value', LOG_WARNING)
+            send2log('Try to convert it to an integer value', LOG_WARNING)
             try:
                 switch['nports'] = int(nports)
             except ValueError:
@@ -314,7 +314,7 @@ def update_mappings(switches, mac2ip, ip2fqdn):
         errors = mac2ip.update()
         for err in errors:
             send2log(err, LOG_ERR)
-        send2log('Now the mac-to-ip mapping is {mac2ip}', LOG_DEBUG, **locals())
+        send2log('The mac-to-ip mapping is {mac2ip}', LOG_DEBUG, **locals())
 
     for switch in switches:
         send2log('Update the port-to-mac mapping of switch {switch.name}',
@@ -397,7 +397,7 @@ else:
     check_settings()
 
     # start the daemon process
-    with daemon.DaemonContext(pidfile = PIDLockFile(Settings.pidfile)):
+    with daemon.DaemonContext(pidfile=PIDLockFile(Settings.pidfile)):
         send2log('Start daemon', LOG_NOTICE)
         try:
             main_process()

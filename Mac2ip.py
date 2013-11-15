@@ -6,8 +6,14 @@ import re
 
 
 # Regular expressions to parse output of conrrespinding commands
-IFCONFIG_RE = re.compile(r"""(?P<ifname>\w+)\s+link\s+encap:Ethernet\s+hwaddr\s+(?P<ifmac>[:0-9a-f]+)\s+inet\s+addr:(?P<ifip>[.0-9]+)\s+Bcast:[.0-9]+\s+mask:(?P<mask>[.0-9]+)""", re.I)
-NMAP_RE = re.compile(r"""(?P<ip>(?:\d{1,3}\.){3}\d{1,3})[^:]+:\s+(?P<mac>(?:[0-9a-f]{2}:){5}[0-9a-f]{2})""", re.I)
+IFCONFIG_RE = re.compile(r"""(?P<ifname>\w+)\s+link\s+encap:Ethernet\s+
+                             hwaddr\s+(?P<ifmac>[:0-9a-f]+)\s+inet\s+
+                             addr:(?P<ifip>[.0-9]+)\s+Bcast:[.0-9]+\s+
+                             mask:(?P<mask>[.0-9]+)""",
+                         re.I | re.X)
+NMAP_RE = re.compile(r"""(?P<ip>(?:\d{1,3}\.){3}\d{1,3})[^:]+:\s+
+                         (?P<mac>(?:[0-9a-f]{2}:){5}[0-9a-f]{2})""",
+                     re.I | re.X)
 
 
 class InterfaceDiscoverError(Exception):
@@ -27,7 +33,7 @@ class Mac2ip(dict):
     A list of interfaces is taken from output of the ifconfig
     command. You can restrict the list by the only_interfaces parameter.
     """
-    def __init__(self, ifconfig_cmd, nmap_cmd, only_interfaces = []):
+    def __init__(self, ifconfig_cmd, nmap_cmd, only_interfaces=[]):
         super(Mac2ip, self).__init__()
         self.ifconfig_cmd = ifconfig_cmd
         self.nmap_cmd = nmap_cmd
@@ -67,7 +73,6 @@ class Mac2ip(dict):
             msg = 'No valid interfaces for arp scanning'
             raise InterfaceDiscoverError(msg)
 
-
     def scanning_interfaces(self):
         """
         Return a string of names of network interfaces used for arp scan
@@ -76,7 +81,6 @@ class Mac2ip(dict):
             return ', '.join([iface[0] for iface in self.interfaces])
         else:
             return 'none'
-
 
     def update(self):
         """

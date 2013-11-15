@@ -31,5 +31,5 @@ snmpwalk_cmd = '/usr/bin/snmpwalk'
 
 pidfile = '/var/run/smonitor/smonitor.pid'
 
-mac_oid  = '.1.3.6.1.2.1.17.4.3.1.1'
+mac_oid = '.1.3.6.1.2.1.17.4.3.1.1'
 port_oid = '.1.3.6.1.2.1.17.4.3.1.2'

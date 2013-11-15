@@ -43,13 +43,12 @@ class Command(object):
             cmd_list.append(parameters)
         self.cmd_tmpl = ' '.join(cmd_list)
 
-
     def __call__(self, **kargs):
         """
         Fill the parameter template and run the command
         """
         cmd = self.cmd_tmpl.format(**kargs)
-        pr = Popen(cmd.split(), stdout = PIPE, stderr = PIPE)
+        pr = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
         pr.wait()
         rc = pr.returncode
         # if all is OK, it will return the standard output of the

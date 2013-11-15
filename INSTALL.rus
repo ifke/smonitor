@@ -12,10 +12,10 @@ sudo apt-get update
 sudo apt-get install python-daemon snmp nmap zabbix-agent
 
 3. Создаем пользователя, из-под которого будем запускать демон
-sudo useradd --create-home --system --comment "smonitor daemon" --shell /bin/false smonitor
+sudo useradd --create-home --home-dir /opt/smonitor --system --comment "smonitor daemon" --shell /bin/false smonitor
 
 4. Копируем py-файлы программы в домашнюю директорию нового пользователя
-sudo cp -v *.py /home/smonitor
+sudo cp -v *.py /opt/smonitor
 
 5. Задаём в файле Settings.py настройки демона 
 
@@ -27,7 +27,7 @@ sudo mv contrib/nmap /etc/sudoers.d
 sudo cp contrib/smonitor /etc/init.d
 
 8. Запускаем smonitor в режиме отладки
-/home/smonitor/smonitor.py --debug
+/opt/smonitor/smonitor.py --debug
 
 9. Если данные успешно переданы на сервер zabbix успешно, завершаем работу программы, нажав Ctrl-C, и запускаем её в режиме демона
 sudo /etc/init.d/smonitor start

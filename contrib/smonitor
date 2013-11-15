@@ -15,7 +15,7 @@
 # Process name ( For display )
 NAME=smonitor
 # Daemon name, where is the actual executable
-DAEMON=/home/smonitor/smonitor.py
+DAEMON=/opt/smonitor/smonitor.py
 # pid file for the daemon
 PIDFOLDER=/var/run/smonitor
 PIDFILE=$PIDFOLDER/smonitor.pid

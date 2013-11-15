@@ -12,12 +12,12 @@ sudo apt-get update
 sudo apt-get install python-daemon snmp nmap zabbix-agent
 
 3. Create the user for daemon running
-sudo useradd --create-home --system --comment "smonitor daemon" --shell /bin/false smonitor
+sudo useradd --create-home --home-dir /opt/smonitor --system --comment "smonitor daemon" --shell /bin/false smonitor
 
 4. Copy python files of the program to the home folder of the new user
-sudo cp -v *.py /home/smonitor
+sudo cp -v *.py /opt/smonitor
 
-5. Set settings of the daemon in file /home/smonitor/Settings.py
+5. Set settings of the daemon in file /opt/smonitor/Settings.py
 
 6. Configure execution nmap with sudo utility
 sudo chown root:root contrib/nmap
@@ -27,7 +27,7 @@ sudo mv contrib/nmap /etc/sudoers.d
 sudo cp contrib/smonitor /etc/init.d
 
 8. Run smonitor in debug mode
-/home/smonitor/smonitor.py --debug
+/opt/smonitor/smonitor.py --debug
 
 9. If your zabbix server have get data successfully, stop the program pressing Ctrl-C and run it as a daemon
 sudo /etc/init.d/smonitor start

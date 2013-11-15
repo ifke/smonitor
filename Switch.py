@@ -39,7 +39,7 @@ class Switch(list):
     def snmpwalk(self, oid_prefix):
         """
         Run the snmpwalk command and return its result
-        
+
         The result is a output of the command where each line is split
         into pairs (key, value). The key is an oid without the specified
         oid_prefix. The value corresponds that oid.
@@ -48,7 +48,7 @@ class Switch(list):
                                                ip=self.ip,
                                                oid_prefix=oid_prefix)
         if returncode != 0:
-            raise SwitchError(output) 
+            raise SwitchError(output)
 
         result = []
         for line in output.split('\n'):
@@ -68,11 +68,11 @@ class Switch(list):
         port_list = []
         for port, mac_set in enumerate(self[1:], 1):
             if mac_set:
-                mac_list = ' '.join(mac_set)  
+                mac_list = ' '.join(mac_set)
                 port_list.append('{port} -> {mac_list}'.format(**locals()))
         return ', '.join(port_list)
 
-    def update_oid2port(self):    
+    def update_oid2port(self):
         """
         Update the mapping of OID sufficies to port numbers
         """
@@ -84,7 +84,7 @@ class Switch(list):
                 continue
             self.oid2port[oid] = port
 
-    def update_oid2mac(self):    
+    def update_oid2mac(self):
         """
         Update the mapping of OID sufficies to sets of mac addresses
         """

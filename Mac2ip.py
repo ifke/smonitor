@@ -27,7 +27,7 @@ class Mac2ip(dict):
     It is used as a common dictionary: keys are mac addresses of
     hosts, values - their ip addresses. The mapping is constructed by
     the nmap command which scans network interfaces of local host.
-    A list of interfaces is taken from output of the ifconfig 
+    A list of interfaces is taken from output of the ifconfig
     command. You can restrict the list by the only_interfaces parameter.
     """
     def __init__(self, ifconfig_cmd, nmap_cmd, only_interfaces = []):
@@ -45,7 +45,7 @@ class Mac2ip(dict):
         """
         Get a list of local network interfaces of the host
 
-        It selects the interfaces with configured ip address and 
+        It selects the interfaces with configured ip address and
         save its name, ip and mac addresses, netmask. The parameter
         only_interfaces restrists a set of discovered interfaces.
         """
@@ -54,7 +54,7 @@ class Mac2ip(dict):
         if returncode != 0:
             msg = 'Can\'t run ifconfig: {output}'.format(**locals())
             raise InterfaceDiscoverError(msg)
-    
+
         interface_info = IFCONFIG_RE.findall(output)
         self.interfaces = []
         for name, mac, ip, mask in interface_info:
@@ -69,7 +69,7 @@ class Mac2ip(dict):
         if not interface_info:
             msg = 'No valid interfaces for arp scanning'
             raise InterfaceDiscoverError(msg)
-            
+
 
     def scanning_interfaces(self):
         """

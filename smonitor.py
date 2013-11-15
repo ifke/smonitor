@@ -34,7 +34,7 @@ DEFAULT_SETTINGS = {
     'ip2fqdn_enable': 1,
     'show_all_addresses': 0,
     'send2zabbix_interval': 900,
-    'loglevel': LOG_WARNING, 
+    'loglevel': LOG_WARNING,
     'default_number_of_ports': 48,
     'max_hosts_on_port': 7,
     'ifconfig_cmd': '/sbin/ifconfig',
@@ -123,7 +123,7 @@ def check_settings():
             send2log('It will be use default value {default_community}',
                      **locals())
             switch['community'] = default_community
-        default_number_of_ports = Settings.default_number_of_ports 
+        default_number_of_ports = Settings.default_number_of_ports
         if 'nports' not in switch:
             send2log('The number of ports is not defined for switch {name}',
                      **locals())
@@ -151,7 +151,7 @@ def check_settings():
 def get_port_value(mac_list, mac2ip, ip2fqdn, show_all_addresses=False):
     """
     Return string value for the list of mac addresses
-    
+
     This value will be send to zabbix server.
     """
     # no device on port
@@ -162,7 +162,7 @@ def get_port_value(mac_list, mac2ip, ip2fqdn, show_all_addresses=False):
         return 'another switch'
     # split hosts depending on a type of address we can get
     fqdns, ips, macs = ([], [], [])
-    # try to convert every mac address in the list into ip address 
+    # try to convert every mac address in the list into ip address
     # and then into full qualified domain name
     for mac in mac_list:
         if mac2ip is not None and mac in mac2ip:
@@ -182,7 +182,7 @@ def get_port_value(mac_list, mac2ip, ip2fqdn, show_all_addresses=False):
                 ips.append(record)
         else:
             macs.append(mac)
-       
+
     return ', '.join(sorted(fqdns) + sorted(ips) + sorted(macs))
 
 
@@ -190,7 +190,7 @@ def send2zabbix(switches, mac2ip, ip2fqdn, cmd, zabbix_server):
     """
     Send info to zabbix server
 
-    The function generates temp file of format defined in the 
+    The function generates temp file of format defined in the
     zabbix_line_tmpl and sends it to sender with the zabbix_sender
     command
     """
@@ -206,7 +206,7 @@ def send2zabbix(switches, mac2ip, ip2fqdn, cmd, zabbix_server):
                 # null port defines mac address of the switch
                 if port == 0:
                     continue
-                value = get_port_value(mac_list, mac2ip, ip2fqdn, 
+                value = get_port_value(mac_list, mac2ip, ip2fqdn,
                                        Settings.show_all_addresses)
                 line = zabbix_line_tmpl.format(**locals())
                 send2log(line, LOG_DEBUG)
@@ -245,7 +245,7 @@ def initialize_command(cmd_path, parameters='', use_sudo=False, sudo_path='',
 
 def initialize_mac2ip(ifconfig_cmd, nmap_cmd):
     """
-    Create Mac2ip object for the mac-to-ip mapping 
+    Create Mac2ip object for the mac-to-ip mapping
     """
     if Settings.mac2ip_enable:
         send2log('Initialize the mac-to-ip mapping')
@@ -262,11 +262,11 @@ def initialize_mac2ip(ifconfig_cmd, nmap_cmd):
         send2log('The mac-to-ip mapping is disabled')
         mapping = None
     return mapping
-        
+
 
 def initialize_switches(snmpwalk_cmd):
     """
-    Create Switch objects for each record in the list Settings.switches 
+    Create Switch objects for each record in the list Settings.switches
     """
     switches = []
     for s in Settings.switches:
@@ -278,7 +278,7 @@ def initialize_switches(snmpwalk_cmd):
         send2log('Parameters: ip={ip}, community={community}, nports={nports}',
                  LOG_DEBUG, **locals())
         try:
-            switch = Switch(name, ip, community, nports, snmpwalk_cmd, 
+            switch = Switch(name, ip, community, nports, snmpwalk_cmd,
                             Settings.port_oid, Settings.mac_oid)
             switches.append(switch)
         except SwitchError as err:
@@ -294,9 +294,9 @@ def initialize_switches(snmpwalk_cmd):
 
 def initialize_ip2fqdn(ip_list):
     """
-    Create the Ip2fqdn object for the ip-to-fqdn mapping 
+    Create the Ip2fqdn object for the ip-to-fqdn mapping
     """
-    if Settings.ip2fqdn_enable:  
+    if Settings.ip2fqdn_enable:
         send2log('Initialize the ip-to-fqdn mapping')
         mapping = Ip2fqdn(ip_list) if Settings.ip2fqdn_enable else None
         send2log('The mapping is {mapping}'.format(**locals()), LOG_DEBUG)
@@ -305,7 +305,7 @@ def initialize_ip2fqdn(ip_list):
         mapping = None
     return mapping
 
-    
+
 def update_mappings(switches, mac2ip, ip2fqdn):
     """
     Update all used mappings
@@ -365,7 +365,7 @@ def main_process():
     send2log('Set the timer to {timer}', LOG_DEBUG, **locals())
     while True:
         current_time = time.time()
-        
+
         if (current_time - timer) > Settings.send2zabbix_interval:
             update_mappings(switches, mac2ip, ip2fqdn)
             send2zabbix(switches, mac2ip, ip2fqdn, zabbix_sender_cmd,
@@ -377,7 +377,7 @@ def main_process():
 
 
 if len(sys.argv) > 1 and sys.argv[1] == '--debug':
-    # in debug mode the program doesn't daemonize and prints all log 
+    # in debug mode the program doesn't daemonize and prints all log
     # messages on console
     send2log = send2console
     check_settings()

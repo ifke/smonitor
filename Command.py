@@ -46,13 +46,13 @@ class Command(object):
 
     def __call__(self, **kargs):
         """
-        Fill the parameter template and run the command 
+        Fill the parameter template and run the command
         """
         cmd = self.cmd_tmpl.format(**kargs)
         pr = Popen(cmd.split(), stdout = PIPE, stderr = PIPE)
         pr.wait()
         rc = pr.returncode
-        # if all is OK, it will return the standard output of the 
+        # if all is OK, it will return the standard output of the
         # command if there is an error on the command execution,
         # it will return the standard error output
         output = pr.communicate()[0] if rc == 0 else pr.communicate()[1]

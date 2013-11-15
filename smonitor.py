@@ -3,7 +3,6 @@
 
 
 from __future__ import print_function
-import os, os.path, stat
 import sys
 import daemon
 from daemon.pidlockfile import PIDLockFile

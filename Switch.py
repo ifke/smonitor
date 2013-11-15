@@ -13,9 +13,10 @@ class SwitchError(Exception):
 
 class Switch(list):
     """
-    The object stores a mapping of ports to sets of mac addresses of hosts connected to that ports
+    Store a mapping of ports to sets of mac addresses connected hosts
     """
-    def __init__(self, name, ip, community, nports, snmpwalk_cmd, port_oid, mac_oid):
+    def __init__(self, name, ip, community, nports, snmpwalk_cmd,
+                 port_oid, mac_oid):
         super(Switch, self).__init__([set() for i in range(nports+1)])
         self.name = name
         self.ip = ip                # IP address of switch
@@ -29,19 +30,23 @@ class Switch(list):
         self.update_oid2port()
         self.update_oid2mac()
         self.update()
-        # next(iter(set(...)), '') is a trick to get random element of the set
-        # there is the only element in self[0], it's mac address of the switch
+        # next(iter(set(...)), '') is a trick to get random element
+        # of the set
+        # there is the only element in self[0] - mac of the switch
         # the blank string helps to avoid exception in case of empty set
         self.mac = next(iter(self[0]), '')
 
     def snmpwalk(self, oid_prefix):
         """
-        Run the snmpwalk command using the specified oid_prefix and return its result
+        Run the snmpwalk command and return its result
         
-        The result is a output of the command where each line is split into pairs (key, value).
-        The key is an oid without the specified oid_prefix. The value corresponds that oid.
+        The result is a output of the command where each line is split
+        into pairs (key, value). The key is an oid without the specified
+        oid_prefix. The value corresponds that oid.
         """
-        returncode, output = self.snmpwalk_cmd(community=self.community, ip=self.ip, oid_prefix=oid_prefix)
+        returncode, output = self.snmpwalk_cmd(community=self.community,
+                                               ip=self.ip,
+                                               oid_prefix=oid_prefix)
         if returncode != 0:
             raise SwitchError(output) 
 
@@ -69,7 +74,7 @@ class Switch(list):
 
     def update_oid2port(self):    
         """
-        Get from the switch and update the mapping of OID sufficies to port numbers
+        Update the mapping of OID sufficies to port numbers
         """
         self.oid2port.clear()
         for oid, value in self.snmpwalk(self.port_oid):
@@ -81,7 +86,7 @@ class Switch(list):
 
     def update_oid2mac(self):    
         """
-        Get from the switch and update the mapping of OID sufficies to sets of mac addresses
+        Update the mapping of OID sufficies to sets of mac addresses
         """
         self.oid2mac.clear()
         for oid, value in self.snmpwalk(self.mac_oid):
@@ -93,7 +98,7 @@ class Switch(list):
 
     def update(self):
         """
-        Rebuild the port-to-mac mapping from the oid-to-port and oid-to-mac mappings 
+        Rebuild the port-to-mac mapping
         """
         self.update_oid2port()
         self.update_oid2mac()

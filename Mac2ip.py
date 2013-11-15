@@ -6,8 +6,11 @@ import re
 
 
 # Regular expressions to parse output of conrrespinding commands
-IFCONFIG_RE = re.compile(r'(?P<ifname>\w+)\s+Link encap:Ethernet\s+HWaddr\s+(?P<ifmac>[:0-9a-f]+)\s+inet addr:(?P<ifip>[.0-9]+)\s+Bcast:[.0-9]+\s+Mask:(?P<mask>[.0-9]+)', re.I)
-NMAP_RE = re.compile(r'(?P<ip>(?:\d{1,3}\.){3}\d{1,3})[^:]+:\s+(?P<mac>(?:[0-9a-f]{2}:){5}[0-9a-f]{2})', re.I)
+IFCONFIG_RE = re.compile(r"""(?P<ifname>\w+)\s+Link encap:Ethernet\s+HWaddr\s+
+    (?P<ifmac>[:0-9a-f]+)\s+inet addr:(?P<ifip>[.0-9]+)\s+Bcast:[.0-9]+\s+
+    Mask:(?P<mask>[.0-9]+)""", re.I & re.X)
+NMAP_RE = re.compile(r"""(?P<ip>(?:\d{1,3}\.){3}\d{1,3})[^:]+:\s+
+    (?P<mac>(?:[0-9a-f]{2}:){5}[0-9a-f]{2})""", re.I & re.X)
 
 
 class InterfaceDiscoverError(Exception):
@@ -21,10 +24,11 @@ class Mac2ip(dict):
     """
     The object stores the mac-to-ip mapping
 
-    It is used as a common dictionary: keys are the mac addresses of hosts, values - their ip addresses.
-    The mapping is constructed by the nmap command which scans local network interfaces of the system.
-    A list of network interfaces is taken from output of the ifconfig command.
-    You can restrict the list by means of the only_interfaces parameter.
+    It is used as a common dictionary: keys are mac addresses of
+    hosts, values - their ip addresses. The mapping is constructed by
+    the nmap command which scans network interfaces of local host.
+    A list of interfaces is taken from output of the ifconfig 
+    command. You can restrict the list by the only_interfaces parameter.
     """
     def __init__(self, ifconfig_cmd, nmap_cmd, only_interfaces = []):
         super(Mac2ip, self).__init__()
@@ -41,14 +45,15 @@ class Mac2ip(dict):
         """
         Get a list of local network interfaces of the host
 
-        It's selected the interfaces with configured ip address.
-        Corresponding mac and ip addresses of each interfaces is stored in the mapping
-        Parameter only_interfaces restrists a set of discovered interfaces
+        It selects the interfaces with configured ip address and 
+        save its name, ip and mac addresses, netmask. The parameter
+        only_interfaces restrists a set of discovered interfaces.
         """
         result = []
         returncode, output = self.ifconfig_cmd()
         if returncode != 0:
-            raise InterfaceDiscoverError('Can\'t run ifconfig: {output}'.format(**locals()))
+            msg = 'Can\'t run ifconfig: {output}'.format(**locals())
+            raise InterfaceDiscoverError(msg)
     
         interface_info = IFCONFIG_RE.findall(output)
         self.interfaces = []
@@ -62,7 +67,8 @@ class Mac2ip(dict):
             mask = str(sum([bin(int(x)).count('1') for x in mask.split('.')]))
             self.interfaces.append((name, mac, ip, mask))
         if not interface_info:
-            raise InterfaceDiscoverError('No valid interfaces for arp scanning')
+            msg = 'No valid interfaces for arp scanning'
+            raise InterfaceDiscoverError(msg)
             
 
     def scanning_interfaces(self):
@@ -88,7 +94,8 @@ class Mac2ip(dict):
             self[mac] = ip
             returncode, output = self.nmap_cmd(address=ip, mask=mask)
             if returncode != 0:
-                errors.append('The nmap scan error on {interface}: {output}'.format(**locals()))
+                msg = 'The nmap error on {name}: {output}'.format(**locals())
+                errors.append(msg)
                 continue
             for host_ip, host_mac in NMAP_RE.findall(output):
                 host_mac = host_mac.lower()

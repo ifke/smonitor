@@ -168,13 +168,13 @@ def get_port_value(mac_list, mac2ip, ip2fqdn, show_all_addresses=False):
             ip = mac2ip[mac]
             if ip2fqdn is not None and ip in ip2fqdn:
                 fqdn = ip2fqdn[ip]
-                if show_all_address:
+                if show_all_addresses:
                     record = '{fqdn} ({ip} {mac})'.format(**locals())
                 else:
                     record = fqdn
                 fqdns.append(record)
             else:
-                if show_all_address:
+                if show_all_addresses:
                     record = '{ip} ({mac})'.format(**locals())
                 else:
                     record = ip

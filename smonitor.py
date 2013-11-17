@@ -14,7 +14,8 @@ from syslog import *
 import Settings
 from Command import Command, CommandError
 from Switch import Switch, SwitchError
-from Mac2ip import Mac2ip, normalize_mac
+from Mac2ip import Mac2ip
+from Mac import Mac, normalize_mac, IncorrectMac
 from Ip2fqdn import Ip2fqdn
 
 
@@ -145,6 +146,36 @@ def check_settings():
         correct_switches.append(switch)
     # keep in Settings.switches list only correct switches
     setattr(Settings, 'switches', correct_switches)
+
+
+def get_vendors_list(ouifile):
+    """
+    Return the mac prefixes to vendors mapping as a dict
+    
+    Data are read from the ouifile file downloaded from
+    http://standards.ieee.org/develop/regauth/oui/oui.txt
+    """
+    result = {}
+    send2log('Open file {filename} containing vendors list', **locals())
+    try:
+        with open(ouifile, 'r') as fh:
+            for line in fh:
+                line = line.strip()
+                words = line.split()
+                # we need lines of format {prefix}  (hex)   {vendor}
+                if len(words) < 3 or words[1] != '(hex)':
+                    continue
+                try:
+                    prefix = normalize_mac(words[0], prefix=True)
+                except IncorrectMac:
+                    continue
+                vendor = ' '.join(words[2:]).title()
+                result[prefix] = vendor
+        send2log('Close file {filename}', **locals())
+    except IOError:
+        send2log('Can\'t open/read file {filename}', LOG_ERROR, **locals())
+        result = None
+    return result
 
 
 def get_port_value(mac_list, mac2ip, ip2fqdn, show_all_addresses=False):

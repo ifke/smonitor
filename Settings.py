@@ -18,6 +18,9 @@ show_all_addresses = 1
 
 send2zabbix_interval = 60
 
+mac2ip_file = '/tmp/mac2ip.txt'
+arpscan_interfaces = 'eth0'
+
 loglevel = 7
 
 default_number_of_ports = 48

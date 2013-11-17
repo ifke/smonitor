@@ -14,7 +14,7 @@ from syslog import *
 import Settings
 from Command import Command, CommandError
 from Switch import Switch, SwitchError
-from Mac2ip import Mac2ip, InterfaceDiscoverError
+from Mac2ip import Mac2ip, normalize_mac
 from Ip2fqdn import Ip2fqdn
 
 
@@ -30,6 +30,8 @@ DEFAULT_SETTINGS = {
     'zabbix_server': '127.0.0.1',
     'community': 'public',
     'mac2ip_enable': 1,
+    'mac2ip_file': '',
+    'arpscan_interfaces': [],
     'ip2fqdn_enable': 1,
     'show_all_addresses': 0,
     'send2zabbix_interval': 900,
@@ -240,21 +242,49 @@ def initialize_command(cmd_path, parameters='', use_sudo=False, sudo_path='',
     return cmd
 
 
+def get_mac2ip_from_file(filename):
+    """
+    Read from file the mac-to-ip mapping and return it as a dict
+    """
+    result = {}
+    send2log('Open file {filename}', **locals())
+    try:
+        with open(filename, 'r') as fh:
+            for line in fh:
+                try:
+                    mac, ip = line.split()[:2]
+                except ValueError:
+                    continue
+                mac = normalize_mac(mac)
+                result[mac] = ip
+        send2log('Close file {filename}', **locals())
+        send2log('Read from file: {result}', LOG_DEBUG, **locals())
+    except IOError:
+        send2log('Can\'t open file {filename}', LOG_ERROR, **locals())
+    return result
+            
+
+
 def initialize_mac2ip(ifconfig_cmd, nmap_cmd):
     """
     Create Mac2ip object for the mac-to-ip mapping
     """
     if Settings.mac2ip_enable:
         send2log('Initialize the mac-to-ip mapping')
-        try:
-            mapping = Mac2ip(ifconfig_cmd, nmap_cmd)
-            ifs = str(mapping.scanning_interfaces())
-            send2log('Found interfaces for arp scannig: {ifs}',
-                     LOG_DEBUG, **locals())
-            send2log('The mapping is {mapping}', LOG_DEBUG, **locals())
-        except InterfaceDiscoverError as err:
-            send2log('Interface discover error: {err}', LOG_ERR, **locals())
-            mapping = None
+        if Settings.mac2ip_file:
+            initial_mapping = get_mac2ip_from_file(Settings.mac2ip_file)
+        else:
+            initial_mapping = {}
+
+        if Settings.arpscan_interfaces == 'all':
+            Settings.arpscan_interfaces = []
+            
+        mapping = Mac2ip(ifconfig_cmd, nmap_cmd,
+                         only_interfaces=Settings.arpscan_interfaces,
+                         initial_mapping=initial_mapping)
+        ifs = str(mapping.scanning_interfaces())
+        send2log('Found interfaces for arp scannig: {ifs}', **locals())
+        send2log('The mapping is {mapping}', LOG_DEBUG, **locals())
     else:
         send2log('The mac-to-ip mapping is disabled')
         mapping = None

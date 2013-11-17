@@ -16,11 +16,21 @@ NMAP_RE = re.compile(r"""(?P<ip>(?:\d{1,3}\.){3}\d{1,3})[^:]+:\s+
                      re.I | re.X)
 
 
-class InterfaceDiscoverError(Exception):
+def normalize_mac(mac):
     """
-    Excetion for network interface discovering
+    Return mac address in standard form
+
+    Standard form assumes all letters in address are lowercase and
+    colons separate each byte of address
     """
-    pass
+    result = mac.lower()
+    if len(result) == 12:
+        # no separators in mac address
+        result = ':'.join([result[i:i+2] for i in range(0, 12, 2)]) 
+    else:
+        result = result.replace(' ', ':')
+        result = result.replace('-', ':')
+    return result
 
 
 class Mac2ip(dict):
@@ -33,10 +43,12 @@ class Mac2ip(dict):
     A list of interfaces is taken from output of the ifconfig
     command. You can restrict the list by the only_interfaces parameter.
     """
-    def __init__(self, ifconfig_cmd, nmap_cmd, only_interfaces=[]):
+    def __init__(self, ifconfig_cmd, nmap_cmd, only_interfaces=[],
+                 initial_mapping={}):
         super(Mac2ip, self).__init__()
         self.ifconfig_cmd = ifconfig_cmd
         self.nmap_cmd = nmap_cmd
+        self.initial_mapping = initial_mapping
         self.interface_discover(only_interfaces)
         self.update()
 
@@ -64,14 +76,11 @@ class Mac2ip(dict):
             if only_interfaces and name not in only_interfaces:
                 continue
             result.append(name)
-            mac = mac.lower()
+            mac = normalize_mac(mac)
             self[mac] = ip
             # convert netmask from dotted to integer format
-            mask = str(sum([bin(int(x)).count('1') for x in mask.split('.')]))
-            self.interfaces.append((name, mac, ip, mask))
-        if not self.interfaces:
-            msg = 'No valid interfaces for arp scanning'
-            raise InterfaceDiscoverError(msg)
+            mask = sum([bin(int(x)).count('1') for x in mask.split('.')])
+            self.interfaces.append((name, mac, ip, str(mask)))
 
     def scanning_interfaces(self):
         """
@@ -90,15 +99,17 @@ class Mac2ip(dict):
         It returns a list of errors that appear during scanning.
         """
         self.clear()
+        for mac, ip in self.initial_mapping.items():
+            self[mac] = ip
         errors = []
         for name, mac, ip, mask in self.interfaces:
             self[mac] = ip
             returncode, output = self.nmap_cmd(address=ip, mask=mask)
             if returncode != 0:
-                msg = 'The nmap error on {name}: {output}'.format(**locals())
-                errors.append(msg)
+                msg = 'The nmap error on {name}: {output}'
+                errors.append(msg.format(**locals()))
                 continue
             for host_ip, host_mac in NMAP_RE.findall(output):
-                host_mac = host_mac.lower()
+                host_mac = normalize_mac(host_mac)
                 self[host_mac] = host_ip
         return errors

@@ -173,7 +173,7 @@ def get_vendors_list(ouifile):
                 result[prefix] = vendor
         send2log('Close file {filename}', **locals())
     except IOError:
-        send2log('Can\'t open/read file {filename}', LOG_ERROR, **locals())
+        send2log('Can\'t open/read file {filename}', LOG_ERR, **locals())
         result = None
     return result
 
@@ -291,7 +291,7 @@ def get_mac2ip_from_file(filename):
         send2log('Close file {filename}', **locals())
         send2log('Read from file: {result}', LOG_DEBUG, **locals())
     except IOError:
-        send2log('Can\'t open file {filename}', LOG_ERROR, **locals())
+        send2log('Can\'t open file {filename}', LOG_ERR, **locals())
     return result
             
 

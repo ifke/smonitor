@@ -49,8 +49,8 @@ class Mac(object):
     Store all information about a mac address
     """
     def __init__(self, mac, ip=None, name=None, vendors=None):
-        # mac must already be in normalized form 
         super(Mac, self).__init__()
+        # mac must already be in normalized form 
         self.mac = mac
         self.ip = ip
         self.__name = name
@@ -61,14 +61,7 @@ class Mac(object):
             self.vendor = None
 
     def __repr__(self):
-        output = [self.mac]
-        if self.vendor:
-            output.extend(['(', self.vendor, ')'])
-        if self.ip:
-            output.extend(['->', self.ip])
-        if self.name:
-            output.extend(['->', self.name])
-        return ''.join(output)
+        return self.show()
 
     @property
     def name(self):
@@ -77,6 +70,28 @@ class Mac(object):
     @name.setter
     def name(self, name):
         self.__name = name
+
+    def show(self, all_addresses=True):
+        """
+        Show object data in human-readable format
+        """
+        if all_addresses:
+            if self.vendor:
+                mac_info = ', '.join((self.mac, self.vendor))
+            else:
+                mac_info = self.mac
+            name = self.name
+            ip = self.ip
+            if self.name:
+                return '{name} ({ip}, {mac_info})'.format(**locals())
+            elif self.ip:
+                return '{ip} ({mac_info})'.format(**locals())
+
+        if self.vendor:
+            mac_info = ''.join((self.mac, ' (', self.vendor, ')'))
+        else:
+            mac_info = self.mac
+        return self.name or self.ip or mac_info
 
 
 class AddressDict(dict):
@@ -88,7 +103,7 @@ class AddressDict(dict):
         self.vendors = vendors
     
     def __repr__(self):
-        return '; '.join([str(mac) for mac in self.values()])
+        return '; '.join([str(addr) for addr in self.values()])
 
     def contains(self, mac):
         """

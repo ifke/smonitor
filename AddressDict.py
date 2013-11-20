@@ -2,6 +2,7 @@
 
 
 from __future__ import print_function
+import socket
 
 
 class IncorrectMac(Exception):
@@ -47,12 +48,13 @@ class Mac(object):
     """
     Store all information about a mac address
     """
-    def __init__(self, mac, ip=None, hostname=None, vendors=None):
+    def __init__(self, mac, ip=None, name=None, vendors=None):
         # mac must already be in normalized form 
         super(Mac, self).__init__()
         self.mac = mac
         self.ip = ip
-        self.hostname = hostname
+        self.__name = name
+        self.fqdn = None
         if vendors:
             self.vendor = vendors.get(mac[:8], 'Unknown')
         else:
@@ -64,9 +66,17 @@ class Mac(object):
             output.extend(['(', self.vendor, ')'])
         if self.ip:
             output.extend(['->', self.ip])
-        if self.hostname:
-            output.extend(['->', self.hostname])
+        if self.name:
+            output.extend(['->', self.name])
         return ''.join(output)
+
+    @property
+    def name(self):
+        return self.__name or self.fqdn
+
+    @name.setter
+    def name(self, name):
+        self.__name = name
 
 
 class AddressDict(dict):
@@ -80,7 +90,19 @@ class AddressDict(dict):
     def __repr__(self):
         return '; '.join([str(mac) for mac in self.values()])
 
-    def update_address(self, mac, ip=None, hostname=None):
+    def contains(self, mac):
+        """
+        Consider any string as mac and check it containing in the macs list
+
+        If the parameter is incorrect, there is no exception and the
+        function returns False.
+        """
+        try:
+            return normalize_mac(mac) in self
+        except IncorrectMac:
+            return False
+
+    def update_address(self, mac, ip=None, name=None):
         """
         Update exist address record if it's necessary
 
@@ -88,18 +110,18 @@ class AddressDict(dict):
         exit_code & 1 == 1 if new object has been created
         (here it's always null)
         exit_code & 2 == 1 if ip address is updated
-        exit_code & 4 == 1 if hostname is updated
+        exit_code & 4 == 1 if name is updated
         """
         exit_code = 0
         if ip is not None and ip != self[mac].ip:
             self[mac].ip = ip
             exit_code |= 2
-        if hostname is not None and hostname != self[mac].hostname:
-            self[mac].hostname = hostname
+        if name is not None and name != self[mac].name:
+            self[mac].name = name
             exit_code |= 4
         return exit_code
 
-    def add(self, mac, ip=None, hostname=None):
+    def add(self, mac, ip=None, name=None):
         """
         Add mac address into the macs
 
@@ -108,10 +130,41 @@ class AddressDict(dict):
         """
         # more likelihood at first
         if mac in self:
-            return self.update_address(mac, ip, hostname)
+            return self.update_address(mac, ip, name)
         original_mac = mac
         mac = normalize_mac(mac)
         if mac != original_mac and mac in self:
-            return self.update_address(mac, ip, hostname)
-        self[mac] = Mac(mac, ip, hostname, self.vendors)
+            return self.update_address(mac, ip, name)
+        try:
+            self[mac] = Mac(mac, ip, name, self.vendors)
+        except IncorrectMac:
+            return -1
         return 1
+
+    def update(self, addr_dict, only_add_new=False):
+        """
+        Update addresses from a dictionary
+
+        The keys of the dictionary are mac addresses, the values contain
+        ip address or a pair of ip and hostname.
+        """
+        for mac, addr in addr_dict.items():
+            if only_add_new and self.contains(mac):
+                continue
+            if addr is None or isinstance(addr, str):
+                self.add(mac, ip=addr)
+            elif isinstance(addr, (tuple, list)):
+                if len(addr) == 1:
+                    self.add(mac, ip=addr[0])
+                else:
+                    self.add(mac, ip=addr[0], name=addr[1])
+
+    def resolve_ips(self):
+        """
+        Try to resolve ip addresses to fqdns
+        """
+        for addr in {self[x] for x in self if self[x].ip}:
+            try:
+                addr.fqdn = socket.gethostbyaddr(addr.ip)[0]
+            except socket.herror:
+                pass

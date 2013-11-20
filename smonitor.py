@@ -15,7 +15,7 @@ import Settings
 from Command import Command, CommandError
 from Switch import Switch, SwitchError
 from Mac2ip import Mac2ip
-from Mac import Mac, normalize_mac, IncorrectMac
+from AddressDict import AddressDict, normalize_mac, IncorrectMac
 from Ip2fqdn import Ip2fqdn
 
 
@@ -151,7 +151,7 @@ def check_settings():
 def get_vendors_list(ouifile):
     """
     Return the mac prefixes to vendors mapping as a dict
-    
+
     Data are read from the ouifile file downloaded from
     http://standards.ieee.org/develop/regauth/oui/oui.txt
     """
@@ -273,7 +273,7 @@ def initialize_command(cmd_path, parameters='', use_sudo=False, sudo_path='',
     return cmd
 
 
-def get_mac2ip_from_file(filename):
+def get_addresses_from_file(filename):
     """
     Read from file the mac-to-ip mapping and return it as a dict
     """
@@ -282,18 +282,24 @@ def get_mac2ip_from_file(filename):
     try:
         with open(filename, 'r') as fh:
             for line in fh:
-                try:
-                    mac, ip = line.split()[:2]
-                except ValueError:
+                # remove comment if it exists
+                if '#' in line:
+                    line = line.split('#', 1)[0]
+                line = line.strip()
+                if not line:
                     continue
-                mac = normalize_mac(mac)
-                result[mac] = ip
+                addr = line.split()
+                if len(addr) == 1:
+                    result[addr[0]] = None
+                elif len(addr) == 2:
+                    result[addr[0]] = addr[1]
+                elif len(addr) == 3:
+                    result[addr[0]] = (addr[1], addr[2])
         send2log('Close file {filename}', **locals())
         send2log('Read from file: {result}', LOG_DEBUG, **locals())
     except IOError:
         send2log('Can\'t open file {filename}', LOG_ERR, **locals())
     return result
-            
 
 
 def initialize_mac2ip(ifconfig_cmd, nmap_cmd):
@@ -309,7 +315,7 @@ def initialize_mac2ip(ifconfig_cmd, nmap_cmd):
 
         if Settings.arpscan_interfaces == 'all':
             Settings.arpscan_interfaces = []
-            
+
         mapping = Mac2ip(ifconfig_cmd, nmap_cmd,
                          only_interfaces=Settings.arpscan_interfaces,
                          initial_mapping=initial_mapping)

@@ -15,9 +15,7 @@ from syslog import *
 import Settings
 from Command import Command, CommandError
 from Switch import Switch, SwitchError
-from Mac2ip import Mac2ip
 from AddressDict import AddressDict, normalize_mac, IncorrectMac, Mac
-from Ip2fqdn import Ip2fqdn
 
 
 # templates of parameters of used programs
@@ -219,12 +217,40 @@ def get_interfaces(ifconfig_cmd):
     return res
 
 
+def get_addresses_from_file(filename):
+    """
+    Read from file the mac-to-ip mapping and return it as a dict
+    """
+    res = {}
+    send2log('Open file {filename}', **locals())
+    try:
+        with open(filename, 'r') as fh:
+            for line in fh:
+                # remove comment if it exists
+                if '#' in line:
+                    line = line.split('#', 1)[0]
+                line = line.strip()
+                if not line:
+                    continue
+                addr = line.split()
+                if len(addr) == 1:
+                    res[addr[0]] = None
+                elif len(addr) == 2:
+                    res[addr[0]] = addr[1]
+                elif len(addr) == 3:
+                    res[addr[0]] = (addr[1], addr[2])
+        send2log('Data have been read from {filename}', **locals())
+    except IOError:
+        send2log('Can\'t open file {filename}', LOG_ERR, **locals())
+    return res
+
+
 def arpscan(nmap_cmd, interfaces):
     """
     Scan subnets of local interfaces and return a dict of macs and ips
     """
     res = {}
-    for name, addr in interfaces.items():    
+    for name, addr in interfaces.items():
         cmd_string = nmap_cmd.show(address=addr[1], mask=addr[2])
         send2log('Execute command {cmd_string}', LOG_DEBUG, **locals())
         returncode, output = nmap_cmd(address=addr[1], mask=addr[2])
@@ -264,7 +290,7 @@ def send2zabbix(switches, addr_dict, cmd, zabbix_server):
                     value = 'another switch'
                 else:
                     value = addr_dict.show(mac_list,
-                            Settings.show_all_addresses)
+                                           Settings.show_all_addresses)
                 line = zabbix_line_tmpl.format(**locals())
                 send2log(line, LOG_DEBUG)
                 print(line, file=fh)
@@ -300,34 +326,6 @@ def initialize_command(cmd_path, parameters='', use_sudo=False, sudo_path='',
     return cmd
 
 
-def get_addresses_from_file(filename):
-    """
-    Read from file the mac-to-ip mapping and return it as a dict
-    """
-    res = {}
-    send2log('Open file {filename}', **locals())
-    try:
-        with open(filename, 'r') as fh:
-            for line in fh:
-                # remove comment if it exists
-                if '#' in line:
-                    line = line.split('#', 1)[0]
-                line = line.strip()
-                if not line:
-                    continue
-                addr = line.split()
-                if len(addr) == 1:
-                    res[addr[0]] = None
-                elif len(addr) == 2:
-                    res[addr[0]] = addr[1]
-                elif len(addr) == 3:
-                    res[addr[0]] = (addr[1], addr[2])
-        send2log('Data have been read from {filename}', **locals())
-    except IOError:
-        send2log('Can\'t open file {filename}', LOG_ERR, **locals())
-    return res
-
-
 def initialize_switches(snmpwalk_cmd):
     """
     Create Switch objects for each record in the list Settings.switches
@@ -338,48 +336,33 @@ def initialize_switches(snmpwalk_cmd):
         ip = s['ip']
         nports = s['nports']
         community = s['community']
-        send2log('Initialize switch named {name}', **locals())
+        send2log('Initialize switch {name}', **locals())
         send2log('Parameters: ip={ip}, community={community}, nports={nports}',
                  LOG_DEBUG, **locals())
-        try:
-            switch = Switch(name, ip, community, nports, snmpwalk_cmd,
-                            Settings.port_oid, Settings.mac_oid)
-            switches.append(switch)
-        except SwitchError as err:
-            send2log('Switch error: {err}', LOG_ERR, **locals())
-            continue
-        send2log('The mapping of switch {name} ({ip}) is {switch}',
-                 LOG_DEBUG, **locals())
-    if not switches:
-        send2log('No switch to monitor', LOG_CRIT)
-        exit(5)
+        switch = Switch(name, ip, community, nports, snmpwalk_cmd,
+                        Settings.port_oid, Settings.mac_oid)
+        switches.append(switch)
     return switches
 
 
-def update_mappings(switches, mac2ip, ip2fqdn):
+def update_data(addr_dict, switches, nmap_cmd, interfaces):
     """
-    Update all used mappings
+    Update data in switches and addressdict objects
     """
-    if mac2ip is not None:
-        send2log('Update the mac-to-ip mapping')
-        errors = mac2ip.update()
-        for err in errors:
-            send2log(err, LOG_ERR)
-        send2log('The mac-to-ip mapping is {mac2ip}', LOG_DEBUG, **locals())
-
+    # arp scanning always is before requests to switches
+    if interfaces or nmap_cmd is None:
+        addr_dict.import_from(arpscan, nmap_cmd, interfaces)
     for switch in switches:
-        send2log('Update the port-to-mac mapping of switch {switch.name}',
-                 **locals())
+        send2log('Update data of switch {switch.name}', **locals())
         try:
             switch.update()
-            send2log('The mapping is {switch}', LOG_DEBUG, **locals())
+            send2log('The result is {switch}', LOG_DEBUG, **locals())
+            for mac_list in switch:
+                addr_dict.import_from(mac_list)
         except SwitchError as err:
             send2log('Switch snmp error: {err}', LOG_ERR, **locals())
-
-    if ip2fqdn is not None:
-        send2log('Update the ip-to-fqdn mapping')
-        ip2fqdn.update(mac2ip.values())
-        send2log('The ip-to-fqdn mapping is {ip2fqdn}', LOG_DEBUG, **locals())
+    if Settings.ip2fqdn_enable:
+        map(Mac.resolve, addr_dict.values())
 
 
 def main_process():
@@ -395,23 +378,15 @@ def main_process():
     nmap_cmd = initialize_command(Settings.nmap_cmd, NMAP_PARAMS,
                                   use_sudo=True, sudo_path=Settings.sudo_cmd,
                                   required=False)
+    switches = initialize_switches(snmpwalk_cmd)
 
     vendors = get_vendors_list('oui.txt')
-    addr_dict = AddressDict(vendors) 
+    addr_dict = AddressDict(vendors)
     addr_dict.import_from(get_addresses_from_file, '../tmp/smonitor.txt')
-    
-    # initialize mappings and switches
-    # arp scanning always is before requests to switches
+
     if ifconfig_cmd is not None:
         interfaces = get_interfaces(ifconfig_cmd)
-    if interfaces or nmap_cmd is None:
-        addr_dict.import_from(arpscan, nmap_cmd, interfaces)
-    switches = initialize_switches(snmpwalk_cmd)
-    for switch in switches:
-        for mac_list in switch:
-            addr_dict.import_from(mac_list)
-    if Settings.ip2fqdn_enable:
-        map(Mac.resolve, addr_dict.values())
+    update_data(addr_dict, switches, nmap_cmd, interfaces)
     send2zabbix(switches, addr_dict, zabbix_sender_cmd, Settings.zabbix_server)
 
     timer = time.time()
@@ -420,17 +395,10 @@ def main_process():
         current_time = time.time()
 
         if (current_time - timer) > Settings.send2zabbix_interval:
-            if interfaces or nmap_cmd is None:
-                addr_dict.import_from(arpscan, nmap_cmd, interfaces)
-            for switch in switches:
-                switch.update()
-                for mac_list in switch:
-                    addr_dict.import_from(mac_list)
-            if Settings.ip2fqdn_enable:
-                map(Mac.resolve, addr_dict.values())
+            update_data(addr_dict, switches, nmap_cmd, interfaces)
             send2zabbix(switches, addr_dict, zabbix_sender_cmd,
                         Settings.zabbix_server)
-            send2log('Set the timer from {timer} to {current_time}',
+            send2log('Increase timer value from {timer} to {current_time}',
                      LOG_DEBUG, **locals())
             timer = current_time
         time.sleep(10)

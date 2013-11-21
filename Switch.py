@@ -27,14 +27,6 @@ class Switch(list):
         self.nports = nports
         self.oid2port = {}
         self.oid2mac = {}
-        self.update_oid2port()
-        self.update_oid2mac()
-        self.update()
-        # next(iter(set(...)), '') is a trick to get random element
-        # of the set
-        # there is the only element in self[0] - mac of the switch
-        # the blank string helps to avoid exception in case of empty set
-        self.mac = next(iter(self[0]), '')
 
     def snmpwalk(self, oid_prefix):
         """
@@ -107,3 +99,8 @@ class Switch(list):
             if oid in self.oid2mac and 0 <= port <= self.nports:
                 mac = self.oid2mac[oid]
                 self[port].add(mac)
+        # next(iter(set(...)), '') is a trick to get random element
+        # of the set
+        # there is the only element in self[0] - mac of the switch
+        # the blank string helps to avoid exception in case of empty set
+        self.mac = next(iter(self[0]), '')

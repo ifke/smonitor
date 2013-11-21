@@ -8,6 +8,7 @@ import daemon
 from daemon.pidlockfile import PIDLockFile
 import tempfile
 import time
+import re
 from syslog import *
 
 
@@ -15,7 +16,7 @@ import Settings
 from Command import Command, CommandError
 from Switch import Switch, SwitchError
 from Mac2ip import Mac2ip
-from AddressDict import AddressDict, normalize_mac, IncorrectMac
+from AddressDict import AddressDict, normalize_mac, IncorrectMac, Mac
 from Ip2fqdn import Ip2fqdn
 
 
@@ -49,6 +50,17 @@ DEFAULT_SETTINGS = {
     'pidfile': '/var/run/smonitor/smonitor.pid',
     'switches': [],
 }
+
+# Regular expressions to parse output of conrrespinding commands
+IFCONFIG_RE = re.compile(r"""(?P<ifname>\w+)\s+link\s+encap:Ethernet\s+
+                             hwaddr\s+(?P<ifmac>[:0-9a-f]+)\s+inet\s+
+                             addr:(?P<ifip>[.0-9]+)\s+Bcast:[.0-9]+\s+
+                             mask:(?P<mask>[.0-9]+)""",
+                         re.I | re.X)
+
+NMAP_RE = re.compile(r"""(?P<ip>(?:\d{1,3}\.){3}\d{1,3})[^:]+:\s+
+                         (?P<mac>(?:[0-9a-f]{2}:){5}[0-9a-f]{2})""",
+                     re.I | re.X)
 
 
 def prepare2log(msg, loglevel, **kargs):
@@ -155,8 +167,8 @@ def get_vendors_list(ouifile):
     Data are read from the ouifile file downloaded from
     http://standards.ieee.org/develop/regauth/oui/oui.txt
     """
-    result = {}
-    send2log('Open file {filename} containing vendors list', **locals())
+    res = {}
+    send2log('Open file {ouifile} containing vendors list', **locals())
     try:
         with open(ouifile, 'r') as fh:
             for line in fh:
@@ -170,53 +182,61 @@ def get_vendors_list(ouifile):
                 except IncorrectMac:
                     continue
                 vendor = ' '.join(words[2:]).title()
-                result[prefix] = vendor
-        send2log('Close file {filename}', **locals())
+                res[prefix] = vendor
+        send2log('Data have been read from {ouifile}', **locals())
     except IOError:
-        send2log('Can\'t open/read file {filename}', LOG_ERR, **locals())
-        result = None
-    return result
+        send2log('Can\'t open/read file {ouifile}', LOG_ERR, **locals())
+        res = None
+    return res
 
 
-def get_port_value(mac_list, mac2ip, ip2fqdn, show_all_addresses=False):
+def get_interfaces(ifconfig_cmd):
     """
-    Return string value for the list of mac addresses
+    Get properties of local network interfaces of the host
 
-    This value will be send to zabbix server.
+    It selects the interfaces with configured ip address and
+    save its name, ip and mac addresses, netmask. The parameter
+    only_interfaces restrists a set of discovered interfaces.
     """
-    # no device on port
-    if not mac_list:
-        return 'none'
-    # too many devices on port
-    elif 0 < Settings.max_hosts_on_port < len(mac_list):
-        return 'another switch'
-    # split hosts depending on a type of address we can get
-    fqdns, ips, macs = ([], [], [])
-    # try to convert every mac address in the list into ip address
-    # and then into full qualified domain name
-    for mac in mac_list:
-        if mac2ip is not None and mac in mac2ip:
-            ip = mac2ip[mac]
-            if ip2fqdn is not None and ip in ip2fqdn:
-                fqdn = ip2fqdn[ip]
-                if show_all_addresses:
-                    record = '{fqdn} ({ip} {mac})'.format(**locals())
-                else:
-                    record = fqdn
-                fqdns.append(record)
-            else:
-                if show_all_addresses:
-                    record = '{ip} ({mac})'.format(**locals())
-                else:
-                    record = ip
-                ips.append(record)
+    cmd_string = ifconfig_cmd.show()
+    send2log('Execute command {cmd_string}', LOG_DEBUG, **locals())
+    returncode, output = ifconfig_cmd()
+    if returncode != 0:
+        send2log('Command {cmd_string}: {output}', LOG_ERR, **locals())
+        return None
+
+    res = {}
+    interface_info = IFCONFIG_RE.findall(output)
+    ifaces = ', '.join([iface[0] for iface in interface_info])
+    send2log('Found interfaces: {ifaces}', LOG_DEBUG, **locals())
+    for name, mac, ip, mask in interface_info:
+        # exception is impossible due to regular expression
+        mac = normalize_mac(mac)
+        # convert netmask from dotted to integer format
+        mask = sum([bin(int(x)).count('1') for x in mask.split('.')])
+        res[name] = (mac, ip, str(mask))
+
+    return res
+
+
+def arpscan(nmap_cmd, interfaces):
+    """
+    Scan subnets of local interfaces and return a dict of macs and ips
+    """
+    res = {}
+    for name, addr in interfaces.items():    
+        cmd_string = nmap_cmd.show(address=addr[1], mask=addr[2])
+        send2log('Execute command {cmd_string}', LOG_DEBUG, **locals())
+        returncode, output = nmap_cmd(address=addr[1], mask=addr[2])
+        if returncode == 0:
+            mapping = dict((mac, ip) for ip, mac in NMAP_RE.findall(output))
+            res.update(mapping)
         else:
-            macs.append(mac)
+            send2log('Command {cmd_string}: {output}', LOG_ERR, **locals())
+    return res
 
-    return ', '.join(sorted(fqdns) + sorted(ips) + sorted(macs))
 
-
-def send2zabbix(switches, mac2ip, ip2fqdn, cmd, zabbix_server):
+def send2zabbix(switches, addr_dict, cmd, zabbix_server):
     """
     Send info to zabbix server
 
@@ -236,8 +256,15 @@ def send2zabbix(switches, mac2ip, ip2fqdn, cmd, zabbix_server):
                 # null port defines mac address of the switch
                 if port == 0:
                     continue
-                value = get_port_value(mac_list, mac2ip, ip2fqdn,
-                                       Settings.show_all_addresses)
+                # no device on port
+                if not mac_list:
+                    value = 'none'
+                # too many devices on port
+                elif 0 < Settings.max_hosts_on_port < len(mac_list):
+                    value = 'another switch'
+                else:
+                    value = addr_dict.show(mac_list,
+                            Settings.show_all_addresses)
                 line = zabbix_line_tmpl.format(**locals())
                 send2log(line, LOG_DEBUG)
                 print(line, file=fh)
@@ -277,7 +304,7 @@ def get_addresses_from_file(filename):
     """
     Read from file the mac-to-ip mapping and return it as a dict
     """
-    result = {}
+    res = {}
     send2log('Open file {filename}', **locals())
     try:
         with open(filename, 'r') as fh:
@@ -290,42 +317,15 @@ def get_addresses_from_file(filename):
                     continue
                 addr = line.split()
                 if len(addr) == 1:
-                    result[addr[0]] = None
+                    res[addr[0]] = None
                 elif len(addr) == 2:
-                    result[addr[0]] = addr[1]
+                    res[addr[0]] = addr[1]
                 elif len(addr) == 3:
-                    result[addr[0]] = (addr[1], addr[2])
-        send2log('Close file {filename}', **locals())
-        send2log('Read from file: {result}', LOG_DEBUG, **locals())
+                    res[addr[0]] = (addr[1], addr[2])
+        send2log('Data have been read from {filename}', **locals())
     except IOError:
         send2log('Can\'t open file {filename}', LOG_ERR, **locals())
-    return result
-
-
-def initialize_mac2ip(ifconfig_cmd, nmap_cmd):
-    """
-    Create Mac2ip object for the mac-to-ip mapping
-    """
-    if Settings.mac2ip_enable:
-        send2log('Initialize the mac-to-ip mapping')
-        if Settings.mac2ip_file:
-            initial_mapping = get_mac2ip_from_file(Settings.mac2ip_file)
-        else:
-            initial_mapping = {}
-
-        if Settings.arpscan_interfaces == 'all':
-            Settings.arpscan_interfaces = []
-
-        mapping = Mac2ip(ifconfig_cmd, nmap_cmd,
-                         only_interfaces=Settings.arpscan_interfaces,
-                         initial_mapping=initial_mapping)
-        ifs = str(mapping.scanning_interfaces())
-        send2log('Found interfaces for arp scannig: {ifs}', **locals())
-        send2log('The mapping is {mapping}', LOG_DEBUG, **locals())
-    else:
-        send2log('The mac-to-ip mapping is disabled')
-        mapping = None
-    return mapping
+    return res
 
 
 def initialize_switches(snmpwalk_cmd):
@@ -354,20 +354,6 @@ def initialize_switches(snmpwalk_cmd):
         send2log('No switch to monitor', LOG_CRIT)
         exit(5)
     return switches
-
-
-def initialize_ip2fqdn(ip_list):
-    """
-    Create the Ip2fqdn object for the ip-to-fqdn mapping
-    """
-    if Settings.ip2fqdn_enable:
-        send2log('Initialize the ip-to-fqdn mapping')
-        mapping = Ip2fqdn(ip_list) if Settings.ip2fqdn_enable else None
-        send2log('The mapping is {mapping}'.format(**locals()), LOG_DEBUG)
-    else:
-        send2log('The ip-to-fqdn mapping is disabled')
-        mapping = None
-    return mapping
 
 
 def update_mappings(switches, mac2ip, ip2fqdn):
@@ -410,20 +396,23 @@ def main_process():
                                   use_sudo=True, sudo_path=Settings.sudo_cmd,
                                   required=False)
 
+    vendors = get_vendors_list('oui.txt')
+    addr_dict = AddressDict(vendors) 
+    addr_dict.import_from(get_addresses_from_file, '../tmp/smonitor.txt')
+    
     # initialize mappings and switches
     # arp scanning always is before requests to switches
-    if ifconfig_cmd is None or nmap_cmd is None:
-        send2log('Force disable mac-to-ip and ip-to-fqdn mappings', LOG_ERR)
-        mac2ip = None
-    else:
-        mac2ip = initialize_mac2ip(ifconfig_cmd, nmap_cmd)
+    if ifconfig_cmd is not None:
+        interfaces = get_interfaces(ifconfig_cmd)
+    if interfaces or nmap_cmd is None:
+        addr_dict.import_from(arpscan, nmap_cmd, interfaces)
     switches = initialize_switches(snmpwalk_cmd)
-    if mac2ip is not None:
-        ip2fqdn = initialize_ip2fqdn(mac2ip.values())
-    else:
-        ip2fqdn = None
-    send2zabbix(switches, mac2ip, ip2fqdn, zabbix_sender_cmd,
-                Settings.zabbix_server)
+    for switch in switches:
+        for mac_list in switch:
+            addr_dict.import_from(mac_list)
+    if Settings.ip2fqdn_enable:
+        map(Mac.resolve, addr_dict.values())
+    send2zabbix(switches, addr_dict, zabbix_sender_cmd, Settings.zabbix_server)
 
     timer = time.time()
     send2log('Set the timer to {timer}', LOG_DEBUG, **locals())
@@ -431,8 +420,15 @@ def main_process():
         current_time = time.time()
 
         if (current_time - timer) > Settings.send2zabbix_interval:
-            update_mappings(switches, mac2ip, ip2fqdn)
-            send2zabbix(switches, mac2ip, ip2fqdn, zabbix_sender_cmd,
+            if interfaces or nmap_cmd is None:
+                addr_dict.import_from(arpscan, nmap_cmd, interfaces)
+            for switch in switches:
+                switch.update()
+                for mac_list in switch:
+                    addr_dict.import_from(mac_list)
+            if Settings.ip2fqdn_enable:
+                map(Mac.resolve, addr_dict.values())
+            send2zabbix(switches, addr_dict, zabbix_sender_cmd,
                         Settings.zabbix_server)
             send2log('Set the timer from {timer} to {current_time}',
                      LOG_DEBUG, **locals())

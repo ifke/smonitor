@@ -133,8 +133,33 @@ class AddressDict(dict):
         super(AddressDict, self).__init__()
         self.vendors = vendors
     
-    def __repr__(self):
-        return '; '.join([str(addr) for addr in self.values()])
+    def __repr__(self, mac_list=None):
+        return self.show()
+
+    def show(self, mac_list=None, all_addresses=True):
+        """
+        Return a list of Mac objects in human-readable format
+        """
+        if mac_list is None:
+            addresses = self.values()
+        else:
+            addresses = []
+            for mac in mac_list:
+                try:
+                    mac = normalize_mac(mac)
+                except IncorrectMac:
+                    continue
+                if mac in self:
+                    addresses.append(self[mac])
+        names, ips, macs = ([], [], [])
+        for addr in addresses:
+            if addr.name:
+                names.append(addr.show(all_addresses))
+            elif addr.ip:
+                ips.append(addr.show(all_addresses))
+            else:
+                macs.append(addr.show(all_addresses))
+        return '; '.join(sorted(names) + sorted(ips) + sorted(macs))
 
     def contains(self, mac):
         """

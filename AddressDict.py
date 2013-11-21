@@ -93,6 +93,16 @@ class Mac(object):
             mac_info = self.mac
         return self.name or self.ip or mac_info
 
+    def resolve(self):
+        """
+        Try to resolve ip address to domain name (FQDN)
+        """
+        if self.ip:
+            try:
+                self.fqdn = socket.gethostbyaddr(self.ip)[0]
+            except socket.herror:
+                pass
+
 
 class AddressDict(dict):
     """
@@ -194,13 +204,3 @@ class AddressDict(dict):
         res = func(*args)
         if res:
             self.update(res)
-
-    def resolve_ips(self):
-        """
-        Try to resolve ip addresses to fqdns
-        """
-        for addr in {self[x] for x in self if self[x].ip}:
-            try:
-                addr.fqdn = socket.gethostbyaddr(addr.ip)[0]
-            except socket.herror:
-                pass

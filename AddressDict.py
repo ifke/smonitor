@@ -32,7 +32,7 @@ def normalize_mac(mac, prefix=False):
         err = 'incorrect length of mac address {mac}'
         raise IncorrectMac(err.format(**locals()))
 
-    # Validation of format of the res
+    # Validation of format of the address
     try:
         check = [x for x in res.split(':') if 0 <= int(x, 16) <= 255]
         if len(check) != nbytes:
@@ -211,11 +211,15 @@ class AddressDict(dict):
         Import data from the source (dict or return of function)
         """
         if callable(source): 
-            dict2update = source(*args)
+            list2update = source(*args).items()
+        elif isinstance(source, dict):
+            list2update = source.items()
+        elif isinstance(source, (list, tuple, set)):
+            list2update = [(mac, None) for mac in source]
         else:
-            dict2update = source
+            return
 
-        for mac, addr in dict2update.items():
+        for mac, addr in list2update:
             if kargs.get('only_add_new', False) and self.contains(mac):
                 continue
             if addr is None or isinstance(addr, str):

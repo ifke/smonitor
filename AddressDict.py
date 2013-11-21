@@ -93,6 +93,27 @@ class Mac(object):
             mac_info = self.mac
         return self.name or self.ip or mac_info
 
+    def update(self, ip=None, name=None):
+        """
+        Update exist address record if it's necessary
+
+        exit_code is a bit mask:
+        exit_code & 1 == 1 if new object has been created
+        (here it's always null)
+        exit_code & 2 == 1 if ip address is updated
+        exit_code & 4 == 1 if name is updated
+        """
+        exit_code = 0
+        if ip is not None and ip != self.ip:
+            self.ip = ip
+            # when ip is changed, domain name will not be actual
+            self.fqdn = None
+            exit_code |= 2
+        if name is not None and name != self.name:
+            self.name = name
+            exit_code |= 4
+        return exit_code
+
     def resolve(self):
         """
         Try to resolve ip address to domain name (FQDN)
@@ -140,25 +161,6 @@ class AddressDict(dict):
             return self[mac]
         return default
 
-    def update_address(self, mac, ip=None, name=None):
-        """
-        Update exist address record if it's necessary
-
-        exit_code is a bit mask:
-        exit_code & 1 == 1 if new object has been created
-        (here it's always null)
-        exit_code & 2 == 1 if ip address is updated
-        exit_code & 4 == 1 if name is updated
-        """
-        exit_code = 0
-        if ip is not None and ip != self[mac].ip:
-            self[mac].ip = ip
-            exit_code |= 2
-        if name is not None and name != self[mac].name:
-            self[mac].name = name
-            exit_code |= 4
-        return exit_code
-
     def add(self, mac, ip=None, name=None):
         """
         Add mac address into the macs
@@ -168,26 +170,28 @@ class AddressDict(dict):
         """
         # more likelihood at first
         if mac in self:
-            return self.update_address(mac, ip, name)
+            return self[mac].update(ip, name)
         original_mac = mac
         mac = normalize_mac(mac)
         if mac != original_mac and mac in self:
-            return self.update_address(mac, ip, name)
+            return self[mac].update(ip, name)
         try:
             self[mac] = Mac(mac, ip, name, self.vendors)
         except IncorrectMac:
             return -1
         return 1
 
-    def update(self, addr_dict, only_add_new=False):
+    def import_from(self, source, *args, **kargs):
         """
-        Update addresses from a dictionary
+        Import data from the source (dict or return of function)
+        """
+        if callable(source): 
+            dict2update = source(*args)
+        else:
+            dict2update = source
 
-        The keys of the dictionary are mac addresses, the values contain
-        ip address or a pair of ip and hostname.
-        """
-        for mac, addr in addr_dict.items():
-            if only_add_new and self.contains(mac):
+        for mac, addr in dict2update.items():
+            if kargs.get('only_add_new', False) and self.contains(mac):
                 continue
             if addr is None or isinstance(addr, str):
                 self.add(mac, ip=addr)
@@ -196,11 +200,3 @@ class AddressDict(dict):
                     self.add(mac, ip=addr[0])
                 else:
                     self.add(mac, ip=addr[0], name=addr[1])
-
-    def update_from(self, func, *args):
-        """
-        Run the function and update oneself from its return
-        """
-        res = func(*args)
-        if res:
-            self.update(res)

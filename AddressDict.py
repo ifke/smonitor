@@ -107,7 +107,7 @@ class AddressDict(dict):
 
     def contains(self, mac):
         """
-        Consider any string as mac and check it containing in the macs list
+        Consider a string as a mac and check its containing in macs list
 
         If the parameter is incorrect, there is no exception and the
         function returns False.
@@ -116,6 +116,19 @@ class AddressDict(dict):
             return normalize_mac(mac) in self
         except IncorrectMac:
             return False
+
+    def get(self, mac, default=None):
+        """
+        Return the Mac object corresponding the mac address
+        """
+        # more likelihood at first
+        if mac in self:
+            return self[mac]
+        original_mac = mac
+        mac = normalize_mac(mac)
+        if mac != original_mac and mac in self:
+            return self[mac]
+        return default
 
     def update_address(self, mac, ip=None, name=None):
         """
@@ -173,6 +186,14 @@ class AddressDict(dict):
                     self.add(mac, ip=addr[0])
                 else:
                     self.add(mac, ip=addr[0], name=addr[1])
+
+    def update_from(self, func, *args):
+        """
+        Run the function and update oneself from its return
+        """
+        res = func(*args)
+        if res:
+            self.update(res)
 
     def resolve_ips(self):
         """

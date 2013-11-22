@@ -14,7 +14,7 @@ from syslog import *
 
 import Settings
 from Command import Command, CommandError
-from Switch import Switch, SwitchError
+from Switch import Switch
 from AddressDict import AddressDict, normalize_mac, IncorrectMac, Mac
 
 
@@ -158,6 +158,25 @@ def check_settings():
     setattr(Settings, 'switches', correct_switches)
 
 
+def show_mapping(mapping):
+    """
+    Return string containing mapping data in the format of this program
+    """
+    if isinstance(mapping, dict):
+        data_list = mapping.items()
+    elif isinstance(mapping, (tuple, list)):
+        data_list = mapping
+    else:
+        return ''
+    res = []
+    for key, value in data_list:
+        if isinstance(value, tuple):
+            value = ', '.join(value)
+            value = ''.join(('(', value, ')'))
+        res.append('->'.join((str(key), str(value))))
+    return '; '.join(res)
+
+
 def get_vendors_list(ouifile):
     """
     Return the mac prefixes to vendors mapping as a dict
@@ -240,6 +259,8 @@ def get_addresses_from_file(filename):
                 elif len(addr) == 3:
                     res[addr[0]] = (addr[1], addr[2])
         send2log('Data have been read from {filename}', **locals())
+        res_str = show_mapping(res)
+        send2log('Result mapping: {res_str}', LOG_DEBUG, **locals())
     except IOError:
         send2log('Can\'t open file {filename}', LOG_ERR, **locals())
     return res
@@ -256,6 +277,8 @@ def arpscan(nmap_cmd, interfaces):
         returncode, output = nmap_cmd(address=addr[1], mask=addr[2])
         if returncode == 0:
             mapping = dict((mac, ip) for ip, mac in NMAP_RE.findall(output))
+            mapping_str = show_mapping(mapping)
+            send2log('Result mapping: {mapping_str}', LOG_DEBUG, **locals())
             res.update(mapping)
         else:
             send2log('Command {cmd_string}: {output}', LOG_ERR, **locals())
@@ -298,7 +321,7 @@ def send2zabbix(switches, addr_dict, cmd, zabbix_server):
         fh.flush()
         send2log('Send data to zabbix server {zabbix_server}', **locals())
         cmd_string = cmd.show(zabbix_server=zabbix_server, filename=fh.name)
-        send2log('The command is {cmd_string}', LOG_DEBUG, **locals())
+        send2log('Execute command {cmd_string}', LOG_DEBUG, **locals())
         returncode, output = cmd(zabbix_server=zabbix_server, filename=fh.name)
         level = LOG_DEBUG if returncode == 0 else LOG_ERR
         send2log('Output of zabbix sender: {output}', level, **locals())
@@ -345,7 +368,62 @@ def initialize_switches(snmpwalk_cmd):
     return switches
 
 
-def update_data(addr_dict, switches, nmap_cmd, interfaces):
+def snmpwalk(snmpwalk_cmd, community, ip, oid_prefix):
+    """
+    Run the snmpwalk command and return its result
+
+    The result is a output of the command where each line is split
+    into pairs (key, value). The key is an oid without the specified
+    oid_prefix. The value corresponds that oid.
+    """
+    res = []
+    cmd_string = snmpwalk_cmd.show(community=community, ip=ip,
+                                   oid_prefix=oid_prefix)
+    send2log('Execute command {cmd_string}', LOG_DEBUG, **locals())
+    rc, output = snmpwalk_cmd(community=community, ip=ip,
+                              oid_prefix=oid_prefix)
+    if rc == 0:
+        for line in output.splitlines():
+            if not line.strip():
+                continue
+            key, value = line.split(' ', 1)
+            key = key.strip()
+            key = key[len(oid_prefix)+1:]
+            value = value.strip('" ')
+            res.append((key, value))
+    else:
+        send2log('Switch {name}: {output}', LOG_ERR, **locals())
+    res_str = show_mapping(res)
+    send2log('Result mapping: {res_str}', LOG_DEBUG, **locals())
+    return res
+
+
+def update_switch(switch, snmpwalk_cmd):
+    """
+    Update port data of the switch object using the snmp requests
+    """
+    oid2port = {}
+    mapping = snmpwalk(snmpwalk_cmd, switch.community, switch.ip,
+                       Settings.port_oid)
+    for oid, value in mapping:
+        try:
+            port = int(value)
+        except ValueError:
+            continue
+        oid2port[oid] = port
+    oid2mac = {}
+    mapping = snmpwalk(snmpwalk_cmd, switch.community, switch.ip,
+                       Settings.mac_oid)
+    for oid, mac in mapping:
+        try:
+            mac = normalize_mac(mac)
+        except IncorrectMac:
+            continue
+        oid2mac[oid] = mac
+    switch.update(oid2port, oid2mac)
+
+
+def update_data(addr_dict, switches, nmap_cmd, interfaces, snmpwalk_cmd):
     """
     Update data in switches and addressdict objects
     """
@@ -354,13 +432,10 @@ def update_data(addr_dict, switches, nmap_cmd, interfaces):
         addr_dict.import_from(arpscan, nmap_cmd, interfaces)
     for switch in switches:
         send2log('Update data of switch {switch.name}', **locals())
-        try:
-            switch.update()
-            send2log('The result is {switch}', LOG_DEBUG, **locals())
-            for mac_list in switch:
-                addr_dict.import_from(mac_list)
-        except SwitchError as err:
-            send2log('Switch snmp error: {err}', LOG_ERR, **locals())
+        update_switch(switch, snmpwalk_cmd)
+        send2log('Switch data: {switch}', LOG_DEBUG, **locals())
+        for mac_list in switch:
+            addr_dict.import_from(mac_list)
     if Settings.ip2fqdn_enable:
         map(Mac.resolve, addr_dict.values())
 
@@ -386,7 +461,7 @@ def main_process():
 
     if ifconfig_cmd is not None:
         interfaces = get_interfaces(ifconfig_cmd)
-    update_data(addr_dict, switches, nmap_cmd, interfaces)
+    update_data(addr_dict, switches, nmap_cmd, interfaces, snmpwalk_cmd)
     send2zabbix(switches, addr_dict, zabbix_sender_cmd, Settings.zabbix_server)
 
     timer = time.time()
@@ -395,7 +470,8 @@ def main_process():
         current_time = time.time()
 
         if (current_time - timer) > Settings.send2zabbix_interval:
-            update_data(addr_dict, switches, nmap_cmd, interfaces)
+            update_data(addr_dict, switches, nmap_cmd, interfaces,
+                        snmpwalk_cmd)
             send2zabbix(switches, addr_dict, zabbix_sender_cmd,
                         Settings.zabbix_server)
             send2log('Increase timer value from {timer} to {current_time}',

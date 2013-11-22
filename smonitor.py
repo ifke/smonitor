@@ -30,10 +30,11 @@ DEFAULT_SETTINGS = {
     'zabbix_server': '127.0.0.1',
     'community': 'public',
     'mac2ip_enable': 1,
-    'mac2ip_file': '',
-    'arpscan_interfaces': [],
+    'addresses_file': '',
+    'vendors_file': 'oui.txt',
+    'arpscan_only': None,
     'ip2fqdn_enable': 1,
-    'show_all_addresses': 0,
+    'show_all_addresses': 1,
     'send2zabbix_interval': 900,
     'loglevel': LOG_WARNING,
     'default_number_of_ports': 48,
@@ -115,6 +116,10 @@ def check_settings():
         else:
             value = Settings.__dict__[key]
             send2log('The parameter {key} is {value}', **locals())
+    # if several interfaces are set, split them into list
+    arpscan_only = Settings.arpscan_only
+    if arpscan_only is not None and ' ' in arpscan_only:
+        setattr(Settings, arpscan_only, arpscan_only.split())
     # selection of correct defined switches
     correct_switches = []
     for n, switch in enumerate(Settings.switches, 1):
@@ -170,8 +175,10 @@ def show_mapping(mapping):
         return ''
     res = []
     for key, value in data_list:
-        if isinstance(value, tuple):
+        if isinstance(value, (tuple, list)):
+            # stick all elements of tuple or list
             value = ', '.join(value)
+            # enclose the result string in brackets
             value = ''.join(('(', value, ')'))
         res.append('->'.join((str(key), str(value))))
     return '; '.join(res)
@@ -184,6 +191,8 @@ def get_vendors_list(ouifile):
     Data are read from the ouifile file downloaded from
     http://standards.ieee.org/develop/regauth/oui/oui.txt
     """
+    if not ouifile:
+        return None
     res = {}
     send2log('Open file {ouifile} containing vendors list', **locals())
     try:
@@ -236,12 +245,28 @@ def get_interfaces(ifconfig_cmd):
     return res
 
 
+def get_arpscan_interfaces(interfaces):
+    """
+    Return allowed interfaces to scan via arp protocol
+    """
+    if Settings.arpscan_only is not None:
+        res = []
+        for iface in interfaces:
+            if iface in Settings.arpscan_only:
+                res.append(iface)
+            else:
+                send2log('{iface} is not allowed to scan', **locals())
+    else:
+        res = interfaces
+    return res
+
+
 def get_addresses_from_file(filename):
     """
     Read from file the mac-to-ip mapping and return it as a dict
     """
     res = {}
-    send2log('Open file {filename}', **locals())
+    send2log('Open addresses file {filename}', **locals())
     try:
         with open(filename, 'r') as fh:
             for line in fh:
@@ -428,7 +453,10 @@ def update_data(addr_dict, switches, nmap_cmd, interfaces, snmpwalk_cmd):
     Update data in switches and addressdict objects
     """
     # arp scanning always is before requests to switches
-    if interfaces or nmap_cmd is None:
+    if Settings.addresses_file:
+        addr_dict.import_from(get_addresses_from_file,
+                              Settings.addresses_file)
+    if interfaces and nmap_cmd is not None and Settings.mac2ip_enable:
         addr_dict.import_from(arpscan, nmap_cmd, interfaces)
     for switch in switches:
         send2log('Update data of switch {switch.name}', **locals())
@@ -455,13 +483,13 @@ def main_process():
                                   required=False)
     switches = initialize_switches(snmpwalk_cmd)
 
-    vendors = get_vendors_list('oui.txt')
+    vendors = get_vendors_list(Settings.vendors_file)
     addr_dict = AddressDict(vendors)
-    addr_dict.import_from(get_addresses_from_file, '../tmp/smonitor.txt')
 
     if ifconfig_cmd is not None:
         interfaces = get_interfaces(ifconfig_cmd)
-    update_data(addr_dict, switches, nmap_cmd, interfaces, snmpwalk_cmd)
+        arpscan_only = get_arpscan_interfaces(interfaces)
+    update_data(addr_dict, switches, nmap_cmd, arpscan_only, snmpwalk_cmd)
     send2zabbix(switches, addr_dict, zabbix_sender_cmd, Settings.zabbix_server)
 
     timer = time.time()

@@ -21,7 +21,7 @@ from AddressDict import AddressDict, normalize_mac, IncorrectMac, Mac
 # templates of parameters of used programs
 ZABBIX_PARAMS = '--zabbix-server {zabbix_server} --input-file {filename} -vv'
 SNMPWALK_PARAMS = '-c {community} -v 2c -Onq -Cc -t 3 {ip} {oid_prefix}'
-NMAP_PARAMS = '-sP -sn -n {address}/{mask}'
+NMAP_PARAMS = '-sP -sn --exclude {address} -n {address}/{mask}'
 # the names of log levels
 MSG_NAMES = ['EMERGE', 'ALERT', 'CRITICAL', 'ERROR', 'WARNING', 'NOTICE',
              'INFO', 'DEBUG']
@@ -416,10 +416,10 @@ def snmpwalk(snmpwalk_cmd, community, ip, oid_prefix):
             key = key[len(oid_prefix)+1:]
             value = value.strip('" ')
             res.append((key, value))
+        res_str = show_mapping(res)
+        send2log('Result mapping: {res_str}', LOG_DEBUG, **locals())
     else:
-        send2log('Switch {name}: {output}', LOG_ERR, **locals())
-    res_str = show_mapping(res)
-    send2log('Result mapping: {res_str}', LOG_DEBUG, **locals())
+        send2log('snmpwalk output: {output}', LOG_ERR, **locals())
     return res
 
 

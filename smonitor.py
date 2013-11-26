@@ -50,14 +50,14 @@ DEFAULT_SETTINGS = {
 }
 
 # Regular expressions to parse output of conrrespinding commands
-IFCONFIG_RE = re.compile(r"""(?P<ifname>\w+)\s+link\s+encap:Ethernet\s+
-                             hwaddr\s+(?P<ifmac>[:0-9a-f]+)\s+inet\s+
-                             addr:(?P<ifip>[.0-9]+)\s+Bcast:[.0-9]+\s+
-                             mask:(?P<mask>[.0-9]+)""",
+IP = r'(?P<ip>(?:\d{1,3}\.){3}\d{1,3})'
+MAC = r'(?P<mac>(?:[0-9a-f]{2}:){5}[0-9a-f]{2})'
+IFCONFIG_RE = re.compile(r"""(?P<name>\w+)\s+link\s+encap:Ethernet\s+
+                             hwaddr\s+{1}\s+inet\s+addr:{0}\s+Bcast:[.0-9]+\s+
+                             mask:(?P<mask>[.0-9]+)""".format(IP, MAC),
                          re.I | re.X)
 
-NMAP_RE = re.compile(r"""(?P<ip>(?:\d{1,3}\.){3}\d{1,3})[^:]+:\s+
-                         (?P<mac>(?:[0-9a-f]{2}:){5}[0-9a-f]{2})""",
+NMAP_RE = re.compile(r'{0}[^\n]*\n[^\n]+\n[^:]+:\s*{1}'.format(IP, MAC),
                      re.I | re.X)
 
 

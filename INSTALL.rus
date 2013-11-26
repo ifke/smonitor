@@ -1,38 +1,45 @@
-﻿Инструкция по установке демона smonitor для Ubuntu (тестировалась на Ubuntu Server 12.04)
+﻿Инструкция по установке демона smonitor на Ubuntu
+(тестировалась на Ubuntu Server 12.04)
 
-Предполагается, что мы уже загрузили на компьютер файла из github
+Предполагается, что мы уже загрузили на компьютер файлы с github.com
 git clone https://github.com/ifke/smonitor.git
 и перешли в папку программы
 cd smonitor
 
-1. Импортируем на zabbix сервер шаблон contrib/zbx_template_smonitor.xml, присоединяем его свичам и активируем поля host_on_port[X] в соответсвии с количеством портов на каждом свиче
+1. Импортируем на zabbix сервер шаблон contrib/zbx_template_smonitor.xml,
+присоединяем его свичам и активируем поля host_on_port[X] в соответсвии с
+количеством портов на каждом свиче.
 
-2. Устанавливаем необходимые утилиты и модули python
+2. Устанавливаем необходимые утилиты и модули python:
 sudo apt-get update
 sudo apt-get install python-daemon snmp nmap zabbix-agent
 
-3. Создаем пользователя, из-под которого будем запускать демон
-sudo useradd --create-home --home-dir /opt/smonitor --system --comment "smonitor daemon" --shell /bin/false smonitor
+3. Создаем пользователя, из-под которого будем запускать демон:
+sudo useradd -m -d /opt/smonitor -r -c "smonitor daemon" -s /bin/false smonitor
 
-4. Копируем py-файлы программы в домашнюю директорию нового пользователя
-sudo cp -v *.py /opt/smonitor
+4. Копируем py-файлы программы и файл отображения в домашнюю директорию
+нового пользователя:
+sudo cp -v *.py oui.txt /opt/smonitor
 
-5. Задаём в файле Settings.py настройки демона 
+5. Задаём в файле Settings.py настройки демона. 
 
-6. Настраиваем запуск команды nmap с помощью утилиты sudo
+6. Настраиваем запуск команды nmap с помощью утилиты sudo:
 sudo chown root:root contrib/nmap
 sudo mv contrib/nmap /etc/sudoers.d
 
-7. Проверяем параметры в скрипте запуска contrib/smonitor и копируем его в папку /etc/init.d
+7. Проверяем параметры скриптa запуска contrib/smonitor и копируем его
+в папку /etc/init.d:
 sudo cp contrib/smonitor /etc/init.d
 
-8. Запускаем smonitor в режиме отладки
+8. Запускаем smonitor в режиме отладки:
 /opt/smonitor/smonitor.py --debug
 
-9. Если данные успешно переданы на сервер zabbix успешно, завершаем работу программы, нажав Ctrl-C, и запускаем её в режиме демона
+9. Если данные успешно переданы на сервер zabbix успешно, завершаем работу 
+программы, нажав Ctrl-C, и запускаем её в режиме демона:
 sudo /etc/init.d/smonitor start
-если программа работает в режиме отладки, но не запускается как демон, скорее всего она не может создать pid файл.
-Тогда проверяем пользователя и путь к файлу в скрипте запуска, а также параметр pidfile в настройках Settings.py.
+если программа работает в режиме отладки, но не запускается как демон,
+скорее всего, она не может создать pid файл. Проверяем пользователя и путь
+к файлу в скрипте запуска, а также параметр pidfile в настройках Settings.py.
 
-10. Настраиваем автозапуск демена smonitor
+10. Настраиваем автозапуск демена smonitor:
 sudo update-rc.d smonitor defaults

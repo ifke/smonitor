@@ -1,0 +1,11 @@
+Version 1.1
+ - Add showing vendor of network interface. The vendor is defined by
+   means of prefixes of mac addresses.
+ - Import from custom file mapping mac addresses into ip addresses and
+   host names.
+ - Add restriction of local network interfaces for arp scanning.
+ - Execution of all external command is logged now.
+ - Fix bug of incorrect mapping local ip addresses.
+
+Version 1.0
+ - First public release.

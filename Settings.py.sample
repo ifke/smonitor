@@ -38,8 +38,33 @@ ip2fqdn_enable = 1
 
 # send to zabbix server all known adresses or only the first one
 # in order domain name, ip adress, mac address (0 or 1)
-# default value is 0
+# default value is 1
 show_all_addresses = 1
+
+# path to the file containing mapping mac addresses prefixes to vendor
+# names (string)
+# such file is available by link:
+# http://standards.ieee.org/develop/regauth/oui/oui.txt
+# if it's set blank string or the file doesn't exist vendor names will
+# be shown
+# default value is '/opt/smonitor/oui.txt'
+vendors_file = ''
+
+# path to the text file containing custom mapping mac addresses to ip
+# addresses and hostnames (string)
+# the format of the file:
+# MAC1  IP1 HOSTNAME1
+# MAC2  IP2
+# split addresses by spaces or tabulators
+# to define comments it's used the sharp symbol #
+# default value is '' (blank string)
+addresses_file = '/opt/smonitor/custom.txt'
+
+# names of local network interfaces allowed for arp scanning (string)
+# they're splited from each other by spaces
+# if blank string is set, arp scanning is disabled
+# default value is not defined (scan all interfaces)
+arpscan_only = 'eth0 eth1'
 
 # interval in seconds of sending data (integer)
 # default value is 900

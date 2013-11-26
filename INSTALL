@@ -1,38 +1,46 @@
-Instruction to install the smonitor daemon on Ubuntu (tested on Ubuntu Server 12.04)
+Instruction to install the smonitor daemon on Ubuntu
+(tested on Ubuntu Server 12.04)
 
-We suppose, you have already download smonitor files from github
+We suppose, you have already downloaded smonitor files from github.com:
 git clone https://github.com/ifke/smonitor.git
 and come in the folder of the program
 cd smonitor
 
-1. Import to your zabbix server the template contrib/zbx_template_smonitor.xml, bind it to switches and acvite/disable items hosts_on_port[X] according to the number of ports of each switch
+1. Import the template contrib/zbx_template_smonitor.xml to your zabbix
+server, bind it to switches and acvite/disable items hosts_on_port[X]
+according to the number of ports of each switch.
 
-2. Install necessary utilities and python modules
+2. Install necessary utilities and python modules:
 sudo apt-get update
 sudo apt-get install python-daemon snmp nmap zabbix-agent
 
-3. Create the user for daemon running
-sudo useradd --create-home --home-dir /opt/smonitor --system --comment "smonitor daemon" --shell /bin/false smonitor
+3. Create the user for daemon running:
+sudo useradd -m -d /opt/smonitor -r -c "smonitor daemon" -s /bin/false smonitor
 
-4. Copy python files of the program to the home folder of the new user
-sudo cp -v *.py /opt/smonitor
+4. Copy python files of the program and vendors file to the home folder
+of the new user:
+sudo cp -v *.py oui.txt /opt/smonitor
 
-5. Set settings of the daemon in file /opt/smonitor/Settings.py
+5. Set settings of the daemon in the file /opt/smonitor/Settings.py.
 
-6. Configure execution nmap with sudo utility
+6. Configure execution nmap with sudo utility:
 sudo chown root:root contrib/nmap
 sudo mv contrib/nmap /etc/sudoers.d
 
-7. Check parameters of the init script in contrib/smonitr and copy it to the folder /etc/init.d
+7. Check parameters of the init script in contrib/smonitr and copy it
+to the folder /etc/init.d:
 sudo cp contrib/smonitor /etc/init.d
 
-8. Run smonitor in debug mode
+8. Run smonitor in debug mode:
 /opt/smonitor/smonitor.py --debug
 
-9. If your zabbix server have get data successfully, stop the program pressing Ctrl-C and run it as a daemon
+9. If your zabbix server have get data successfully, stop the program
+pressing Ctrl-C and run it as a daemon:
 sudo /etc/init.d/smonitor start
-if program works properly in debug mode, but doesn't start as a daemon, most likely it can't create the pid file.
-Check the user and the path to the file in the init script, so the pidfile parameter in the Settings.py file.
+if program works properly in debug mode, but doesn't start as a daemon,
+most likely it can't create the pid file. Check the user and the path to
+the file in the init script, so the pidfile parameter in the Settings.py
+file.
 
-10. Configure autostart of the daemon
+10. Configure autostart of the daemon:
 sudo update-rc.d smonitor defaults

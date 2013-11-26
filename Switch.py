@@ -8,8 +8,7 @@ class Switch(list):
     """
     Store a mapping of ports to sets of mac addresses connected hosts
     """
-    def __init__(self, name, ip, community, nports, snmpwalk_cmd,
-                 port_oid, mac_oid):
+    def __init__(self, name, ip, community, nports):
         super(Switch, self).__init__([set() for i in range(nports+1)])
         self.name = name
         self.ip = ip                # IP address of switch

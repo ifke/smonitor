@@ -47,7 +47,6 @@ DEFAULT_SETTINGS = {
     'mac_oid': '.1.3.6.1.2.1.17.4.3.1.1',
     'port_oid': '.1.3.6.1.2.1.17.4.3.1.2',
     'pidfile': '/var/run/smonitor/smonitor.pid',
-    'switches': [],
 }
 
 # Regular expressions to parse output of conrrespinding commands
@@ -96,6 +95,27 @@ def send2console(msg, loglevel=LOG_INFO, **kargs):
     print(msg)
 
 
+def check_int(value, default, name):
+    """
+    Check integer parameter of the Settings.py file
+    """
+    if isinstance(value, str):
+        send2log('Convert string "{value}" to integer', **locals())
+        try:
+            value = int(value)
+        except ValueError:
+            send2log('Convertation is failed', LOG_ERR, **locals())
+            send2log('Set {name} to default {default}',
+                     LOG_WARNING, **locals())
+            value = default
+    if value < 0:
+        send2log('{name} must be positive', LOG_ERR, **locals())
+        send2log('Set {name} to default {default}', LOG_WARNING, **locals())
+        value = default
+    return value
+        
+
+
 def check_settings():
     """
     Check a set of variables imported from Settings.py
@@ -113,9 +133,12 @@ def check_settings():
             setattr(Settings, key, value)
             send2log('No {key} in settings. Set it to default value {value}',
                      **locals())
-        else:
-            value = Settings.__dict__[key]
-            send2log('The parameter {key} is {value}', **locals())
+            continue
+        v = Settings.__dict__[key]
+        if isinstance(value, int):
+            v = check_int(v, value, key)
+            setattr(Settings, key, v)
+        send2log('The parameter {key} is {v}', **locals())
     # if several interfaces are set, split them into list
     arpscan_only = Settings.arpscan_only
     if arpscan_only is not None and ' ' in arpscan_only:
@@ -131,34 +154,15 @@ def check_settings():
             continue
         # the name will require for log message
         name = switch['name']
-        # check optional parameters
-        default_community = Settings.community
-        if 'community' not in switch:
-            send2log('Community is not defined for switch {name}', **locals())
-            send2log('It will be use default value {default_community}',
-                     **locals())
-            switch['community'] = default_community
-        default_number_of_ports = Settings.default_number_of_ports
-        if 'nports' not in switch:
-            send2log('The number of ports is not defined for switch {name}',
-                     **locals())
-            send2log('It will be use default value {default_number_of_ports}',
-                     **locals())
-            switch['nports'] = default_number_of_ports
-        elif isinstance(switch['nports'], str):
-            nports = switch['nports']
-            send2log('The number of ports is defined as a string "{nports}"',
-                     LOG_WARNING, **locals())
-            send2log('Try to convert it to an integer value', LOG_WARNING)
-            try:
-                switch['nports'] = int(nports)
-            except ValueError:
-                send2log('Converting is unsuccessful', LOG_WARNING)
-                send2log('The parameter is set to {default_number_of_ports}',
-                         LOG_WARNING, **locals())
-                switch['nports'] = default_number_of_ports
+        switch['community'] = switch.get('community', Settings.community)
+        default = Settings.default_number_of_ports
+        nports = switch.get('nports', default)
+        switch['nports'] = check_int(nports, default, 'the number of ports')
         # if we come here, the switch parameters are correct
         correct_switches.append(switch)
+    if not correct_switches:
+        send2log('No switches to monitor', LOG_CRIT)
+        exit(1)
     # keep in Settings.switches list only correct switches
     setattr(Settings, 'switches', correct_switches)
 
@@ -387,8 +391,7 @@ def initialize_switches(snmpwalk_cmd):
         send2log('Initialize switch {name}', **locals())
         send2log('Parameters: ip={ip}, community={community}, nports={nports}',
                  LOG_DEBUG, **locals())
-        switch = Switch(name, ip, community, nports, snmpwalk_cmd,
-                        Settings.port_oid, Settings.mac_oid)
+        switch = Switch(name, ip, community, nports)
         switches.append(switch)
     return switches
 

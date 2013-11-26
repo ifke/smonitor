@@ -468,6 +468,7 @@ def update_data(addr_dict, switches, nmap_cmd, interfaces, snmpwalk_cmd):
         for mac_list in switch:
             addr_dict.import_from(mac_list)
     if Settings.ip2fqdn_enable:
+        send2log('Resolve ip addresses to domain names')
         map(Mac.resolve, addr_dict.values())
 
 
@@ -491,6 +492,9 @@ def main_process():
 
     if ifconfig_cmd is not None:
         interfaces = get_interfaces(ifconfig_cmd)
+        if interfaces:
+            for iface in interfaces.values():
+                addr_dict.add(mac=iface[0], ip=iface[1])
         arpscan_only = get_arpscan_interfaces(interfaces)
     update_data(addr_dict, switches, nmap_cmd, arpscan_only, snmpwalk_cmd)
     send2zabbix(switches, addr_dict, zabbix_sender_cmd, Settings.zabbix_server)
